@@ -1,5 +1,4 @@
 from pytest import fixture
-from utilities import loggers
 from datetime import datetime
 from config import Configs
 import logging
@@ -32,13 +31,12 @@ def pytest_configure(config):
     txt_log_file = f'auto_log_{log_file_name_format}.log'
     html_log_file = f'auto_log_{log_file_name_format}.html'
     xml_log_file = f'auto_log_{log_file_name_format}.xml'
-    fo = open(os.path.join(result_dir, txt_log_file), "w+")
-    fo.close()
+    # fo = open(os.path.join(result_dir, txt_log_file), "w+")
+    # fo.close()
 
     config.option.htmlpath = os.path.join(result_dir, html_log_file)
     config.option.log_file = os.path.join(result_dir, txt_log_file)
     config.option.xmlpath = os.path.join(result_dir, xml_log_file)
-    loggers.init_logging(os.path.join(result_dir, txt_log_file), config.getoption("--loglevel"))
     logging.debug(f'Result directory is created as {result_dir}')
 
 
