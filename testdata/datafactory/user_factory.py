@@ -8,7 +8,7 @@ from typing import List
 
 
 @dataclass
-class ModelPerson:
+class ModelUser:
     id: int = field(default_factory=Randomize().random_long_integer)
     username: str = field(default_factory=Randomize().random_first_name)
     firstname: str = username
@@ -23,13 +23,13 @@ class ModelPerson:
 
 
 @dataclass
-class ModelPersonList:
-    persons: List[ModelPerson]
+class ModelUserList:
+    users: List[ModelUser]
 
 
 if __name__ == '__main__':
-    p1 = ModelPerson()
-    p2 = ModelPerson()
+    p1 = ModelUser()
+    p2 = ModelUser()
     print(p1)
     print(p2)
     # pp = ModelPersonList([p1, p2])
