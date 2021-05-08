@@ -1,6 +1,3 @@
-
-from lib import users
-from config import Configs
 from lib.api.rest_client import Method, execute_rest_api
 from dataclasses import asdict
 from lib.api import build_url
