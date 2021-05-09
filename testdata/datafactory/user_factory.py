@@ -11,7 +11,7 @@ from pprint import pprint
 
 
 @dataclass
-class ModelUser(Model):
+class UserModel(Model):
     id: int = field(default_factory=Randomize().random_long_integer)
     username: str = field(default_factory=Randomize().random_first_name)
     firstName: str = field(default_factory=Randomize().random_first_name)
@@ -24,15 +24,15 @@ class ModelUser(Model):
 
 @dataclass
 class ModelUserList:
-    users: List[ModelUser]
+    users: List[UserModel]
 
 
 if __name__ == '__main__':
-    p1 = ModelUser()
-    p2 = ModelUser()
+    p1 = UserModel()
+    p2 = UserModel()
     print(p1)
     print(p2)
-    pprint(ModelUser.json_schema())
+    pprint(UserModel.json_schema())
 
 '''
  [

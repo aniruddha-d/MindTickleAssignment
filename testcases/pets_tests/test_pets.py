@@ -1,7 +1,7 @@
 import pytest
 import logging
 from actions.pets import Pets
-from testdata.datafactory.pet_factory import ModelPet
+from testdata.datafactory.pet_factory import PetModel
 from http import HTTPStatus
 from lib.api.validator import validate_response_body, validate_response_body_as_json, validate_schema
 
@@ -9,7 +9,7 @@ from dataclasses import asdict
 
 @pytest.mark.pet
 def test_create_pet():
-    m1 = ModelPet()   # model
+    m1 = PetModel()   # model
     resp = Pets().create_pet(m1)
     assert resp.status_code == 200
 

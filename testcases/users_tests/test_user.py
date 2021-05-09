@@ -1,7 +1,7 @@
 import pytest
 import logging
 from actions.users import Users
-from testdata.datafactory.user_factory import ModelUser
+from testdata.datafactory.user_factory import UserModel
 from http import HTTPStatus
 from lib.api.validator import validate_response_body, validate_response_body_as_json, validate_schema
 from dataclasses import asdict
@@ -10,10 +10,10 @@ from dataclasses import asdict
 @pytest.mark.user
 def test_create_users():
     assert 1 + 1 == 2
-    u1 = ModelUser()
-    u2 = ModelUser()
-    u3 = ModelUser()
-    u4 = ModelUser()
+    u1 = UserModel()
+    u2 = UserModel()
+    u3 = UserModel()
+    u4 = UserModel()
 
     resp = Users().create_users([u1, u2, u3, u4])
     assert resp.status_code == HTTPStatus.OK
@@ -22,7 +22,7 @@ def test_create_users():
 
 @pytest.mark.user
 def test_create_user():
-    m1 = ModelUser()  # model
+    m1 = UserModel()  # model
     resp = Users().create_user(m1)
     assert resp.status_code == 200
 

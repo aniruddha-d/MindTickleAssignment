@@ -46,13 +46,8 @@ class Tag(JsonSchemaMixin):
     name: str = field(default_factory=Randomize().random_words)
 
 
-# @dataclass
-# class Tags(JsonSchemaMixin):
-#     tags: List[Tag]
-#
-
 @dataclass
-class ModelPet(Model):
+class PetModel(Model):
     tags: List[Tag] = field(default_factory=create_tags)
     id: int = field(default_factory=Randomize().random_long_integer)
     category: Category = field(default_factory=get_random_pet_category)
@@ -62,10 +57,10 @@ class ModelPet(Model):
 
 
 if __name__ == '__main__':
-    p = ModelPet()
+    p = PetModel()
     print(p)
 
-    pprint(ModelPet.json_schema())
+    pprint(PetModel.json_schema())
 
 '''
  {
