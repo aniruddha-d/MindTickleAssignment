@@ -11,7 +11,7 @@ from dataclasses import asdict
 @pytest.mark.user
 def test_create_users_using_array():
     users_list = []
-    for i in range(30):
+    for i in range(5):
         users_list.append(UserModel())
 
     user_actions = Users()
