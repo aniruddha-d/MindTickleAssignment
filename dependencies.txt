@@ -3,3 +3,5 @@ pytest-html
 pytest-logger
 requests
 faker
+dataclasses
+dataclasses-jsonschema

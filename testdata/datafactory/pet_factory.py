@@ -6,7 +6,9 @@ from utilities.randomizer import Randomize
 from dataclasses import dataclass, field, asdict
 import random
 from typing import List
-
+from testdata.datafactory import Model
+from pprint import pprint
+from dataclasses_jsonschema import JsonSchemaMixin
 
 def get_random_pet_category():
     pets_category = {
@@ -33,25 +35,25 @@ def create_tags(number=Randomize().random_short_integer(0, 5)):
 
 
 @dataclass
-class Category:
+class Category(JsonSchemaMixin):
     id: int
     name: str
 
 
 @dataclass
-class Tag:
+class Tag(JsonSchemaMixin):
     id: int = field(default_factory=Randomize().random_long_integer)
     name: str = field(default_factory=Randomize().random_words)
 
 
-@dataclass
-class Tags:
-    tags: List[Tag]
+# @dataclass
+# class Tags(JsonSchemaMixin):
+#     tags: List[Tag]
+#
 
-
 @dataclass
-class ModelPet:
-    tags: Tags = field(default_factory=create_tags)
+class ModelPet(Model):
+    tags: List[Tag] = field(default_factory=create_tags)
     id: int = field(default_factory=Randomize().random_long_integer)
     category: Category = field(default_factory=get_random_pet_category)
     name: str = field(default_factory=Randomize().random_first_name)
@@ -62,9 +64,8 @@ class ModelPet:
 if __name__ == '__main__':
     p = ModelPet()
     print(p)
-    print(asdict(p))
 
-    print(Tag())
+    pprint(ModelPet.json_schema())
 
 '''
  {

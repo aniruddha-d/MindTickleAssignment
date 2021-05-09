@@ -9,6 +9,9 @@ class Randomize:
     def random_first_name(self):
         return self.faker.first_name()
 
+    def random_username(self):
+        return self.faker.first_name()
+
     def random_last_name(self):
         return self.faker.last_name()
 
