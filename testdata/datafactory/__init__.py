@@ -7,6 +7,6 @@ class Model(JsonSchemaMixin):
 
     @staticmethod
     def parse(data: dict, type_of_model: type):
-        return type_of_model.from_dict(data)
-
+        obj = type_of_model.from_dict(data)
+        return obj
 

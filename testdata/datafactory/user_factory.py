@@ -13,7 +13,7 @@ from pprint import pprint
 @dataclass
 class UserModel(Model):
     id: int = field(default_factory=Randomize().random_long_integer)
-    username: str = field(default_factory=Randomize().random_first_name)
+    username: str = field(default_factory=Randomize().random_username)
     firstName: str = field(default_factory=Randomize().random_first_name)
     lastName: str = field(default_factory=Randomize().random_last_name)
     email: str = field(default_factory=Randomize().random_email_id)
@@ -34,6 +34,10 @@ if __name__ == '__main__':
     print(p2)
     pprint(UserModel.json_schema())
 
+    p1.firstName = 102
+    print(p1.firstName)
+    # from dataclasses import asdict
+    # print(asdict(p1))
 '''
  [
   {

@@ -3,12 +3,24 @@ from dataclasses import asdict
 from testdata.datafactory import Model
 
 
-def validate_schema(response: dict, schema_model: type) -> bool:
+def validate_schema(response: (Response, dict), schema_model: type) -> bool:
+    """ Validate the schema of response with the model specified
+    :param response: json payload
+    :param schema_model: model type to validate schema
+    :return: bool result
+    """
+    if isinstance(response, Response):
+        response = response.json()
     Model.parse(response, schema_model)
     return True
 
 
 def validate_response_body(response: (Response, dict), expected_response_model: Model) -> bool:
+    """ Validate the
+    :param response:
+    :param expected_response_model:
+    :return:
+    """
     if isinstance(response, Response):
         response = response.json()
     response_model = Model.parse(response, type(expected_response_model))

@@ -1,5 +1,6 @@
 from faker import Faker
 import random
+from utilities.data_time_utils import get_timestamp
 
 
 class Randomize:
@@ -10,7 +11,7 @@ class Randomize:
         return self.faker.first_name()
 
     def random_username(self):
-        return self.faker.first_name()
+        return f'{self.faker.first_name()}_{get_timestamp()}'
 
     def random_last_name(self):
         return self.faker.last_name()
