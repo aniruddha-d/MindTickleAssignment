@@ -42,6 +42,8 @@
     - $ pytest <absolute_path_to_directory>
 - Run test cases from file
     - $ pytest file.py 
+- Run test cases parallely 
+    - $ pytest -n <worker_count> 
 
 ---
 
