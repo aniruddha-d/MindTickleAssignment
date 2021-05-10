@@ -50,7 +50,7 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 @fixture(scope='function', autouse=True)
-def pet_setup_fixture(request):
+def setup_fixture(request):
     logging.info(f'Executing test case {request.node.nodeid}')
 
     yield
