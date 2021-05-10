@@ -1,6 +1,7 @@
 pytest
 pytest-html
 pytest-logger
+pytest-xdist
 requests
 faker
 dataclasses
