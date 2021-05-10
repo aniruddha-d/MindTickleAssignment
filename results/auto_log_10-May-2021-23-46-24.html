@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>auto_log_10-May-2021-23-46-24.html</h1>
+    <p>Report generated on 10-May-2021 at 23:48:50 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.10.0", "pytest": "6.2.4"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-10-10.0.19042-SP0</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"Faker": "8.1.2", "html": "3.1.1", "logger": "0.5.1", "metadata": "1.11.0"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.9.5</td></tr></table>
+    <h2>Summary</h2>
+    <p>16 tests ran in 146.41 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">14 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">2 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">testcases/users_tests/test_user_creation.py::test_create_duplicate_users</td>
+          <td class="col-duration">2.24</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.mark.user<br/>    def test_create_duplicate_users():<br/>    <br/>        user1 = UserModel()<br/>        user_actions = UserActions()<br/>        resp = user_actions.create_user(user1)<br/>    <br/>        success_response = SuccessResponse(message=str(user1.id))<br/>        logging.info(f&#x27;Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())&#x27;)<br/>    <br/>        logging.info(&#x27;Validating STATUS_CODE is OK&#x27;)<br/>        assert resp.status_code == HTTPStatus.OK, f&#x27;Response is - {resp.status_code}&#x27;<br/>    <br/>        logging.info(f&#x27;Validating Response SCHEMA&#x27;)<br/>        assert validate_schema(resp, type(success_response)), &#x27;Response schema is incorrect&#x27;<br/>    <br/>        logging.info(f&#x27;Validating Response BODY&#x27;)<br/>        assert validate_response_body(resp, success_response), f&#x27;expected: {resp.json()} \n &#x27; \<br/>                                                               f&#x27;actual: {asdict(success_response)}&#x27;<br/>    <br/>        # create same user again. Assuming the creation should fail due to duplicate id and username<br/>        resp = user_actions.create_user(user1)<br/>    <br/>        logging.info(&#x27;Validating STATUS_CODE is CONFLICT&#x27;)<br/>&gt;       assert resp.status_code == HTTPStatus.CONFLICT, f&#x27;Response is - {resp.status_code}&#x27;<br/><span class="error">E       AssertionError: Response is - 200</span><br/><span class="error">E       assert 200 == &lt;HTTPStatus.CONFLICT: 409&gt;</span><br/><span class="error">E         +200</span><br/><span class="error">E         -&lt;HTTPStatus.CONFLICT: 409&gt;</span><br/><br/>testcases\users_tests\test_user_creation.py:74: AssertionError<br/> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating User
+INFO:root:POST	::: https://petstore.swagger.io/v2/user
+INFO:root:BODY	::: {&#x27;id&#x27;: 388290301, &#x27;username&#x27;: &#x27;Robert_138399635102008057&#x27;, &#x27;firstName&#x27;: &#x27;Charles&#x27;, &#x27;lastName&#x27;: &#x27;Holmes&#x27;, &#x27;email&#x27;: &#x27;april.hall@martin.com&#x27;, &#x27;password&#x27;: &#x27;fXJWT6Ro_*&#x27;, &#x27;phone&#x27;: &#x27;+918846672713&#x27;, &#x27;userStatus&#x27;: 9}
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Creating User
+INFO:root:POST	::: https://petstore.swagger.io/v2/user
+INFO:root:BODY	::: {&#x27;id&#x27;: 388290301, &#x27;username&#x27;: &#x27;Robert_138399635102008057&#x27;, &#x27;firstName&#x27;: &#x27;Charles&#x27;, &#x27;lastName&#x27;: &#x27;Holmes&#x27;, &#x27;email&#x27;: &#x27;april.hall@martin.com&#x27;, &#x27;password&#x27;: &#x27;fXJWT6Ro_*&#x27;, &#x27;phone&#x27;: &#x27;+918846672713&#x27;, &#x27;userStatus&#x27;: 9}
+INFO:root:Validating STATUS_CODE is CONFLICT
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:24 Creating User
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user
+INFO     root:rest_client.py:91 BODY	::: {&#x27;id&#x27;: 388290301, &#x27;username&#x27;: &#x27;Robert_138399635102008057&#x27;, &#x27;firstName&#x27;: &#x27;Charles&#x27;, &#x27;lastName&#x27;: &#x27;Holmes&#x27;, &#x27;email&#x27;: &#x27;april.hall@martin.com&#x27;, &#x27;password&#x27;: &#x27;fXJWT6Ro_*&#x27;, &#x27;phone&#x27;: &#x27;+918846672713&#x27;, &#x27;userStatus&#x27;: 9}
+INFO     root:test_user_creation.py:58 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())
+INFO     root:test_user_creation.py:60 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:63 Validating Response SCHEMA
+INFO     root:test_user_creation.py:66 Validating Response BODY
+INFO     root:users.py:24 Creating User
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user
+INFO     root:rest_client.py:91 BODY	::: {&#x27;id&#x27;: 388290301, &#x27;username&#x27;: &#x27;Robert_138399635102008057&#x27;, &#x27;firstName&#x27;: &#x27;Charles&#x27;, &#x27;lastName&#x27;: &#x27;Holmes&#x27;, &#x27;email&#x27;: &#x27;april.hall@martin.com&#x27;, &#x27;password&#x27;: &#x27;fXJWT6Ro_*&#x27;, &#x27;phone&#x27;: &#x27;+918846672713&#x27;, &#x27;userStatus&#x27;: 9}
+INFO     root:test_user_creation.py:73 Validating STATUS_CODE is CONFLICT<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">testcases/users_tests/test_user_update.py::test_update_existing_user_with_invalid_data</td>
+          <td class="col-duration">2.44</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">@pytest.mark.user<br/>    def test_update_existing_user_with_invalid_data():<br/>        &quot;&quot;&quot; Validates whether This case is expected failure<br/>        :return:<br/>        &quot;&quot;&quot;<br/>    <br/>        user1 = UserModel()<br/>        user_actions = UserActions()<br/>        resp = user_actions.create_user(user1)<br/>    <br/>        logging.info(&#x27;Validating STATUS_CODE is OK&#x27;)<br/>        assert resp.status_code == HTTPStatus.OK, f&#x27;Response is - {resp.status_code}&#x27;<br/>    <br/>        # Expected type of Email and phone is string<br/>        # Invalid data created with values as int and string with special chars<br/>        updated_user1_details = UserModel()<br/>        updated_user1_details.email = Randomize().random_integer()<br/>        updated_user1_details.phone = Randomize().random_password()<br/>    <br/>        response = user_actions.update_user(user1.username, updated_user1_details)<br/>    <br/>        logging.info(&#x27;Validating STATUS_CODE is BAD_REQUEST&#x27;)<br/>&gt;       assert response.status_code == HTTPStatus.BAD_REQUEST, f&#x27;Response is - {response.status_code}&#x27;<br/><span class="error">E       AssertionError: Response is - 200</span><br/><span class="error">E       assert 200 == &lt;HTTPStatus.BAD_REQUEST: 400&gt;</span><br/><span class="error">E         +200</span><br/><span class="error">E         -&lt;HTTPStatus.BAD_REQUEST: 400&gt;</span><br/><br/>testcases\users_tests\test_user_update.py:77: AssertionError<br/> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating User
+INFO:root:POST	::: https://petstore.swagger.io/v2/user
+INFO:root:BODY	::: {&#x27;id&#x27;: 420374918, &#x27;username&#x27;: &#x27;Stephen_138399635198011555&#x27;, &#x27;firstName&#x27;: &#x27;Melanie&#x27;, &#x27;lastName&#x27;: &#x27;Rodriguez&#x27;, &#x27;email&#x27;: &#x27;melissa.franklin@burton.com&#x27;, &#x27;password&#x27;: &#x27;P_#8SidG^&amp;&#x27;, &#x27;phone&#x27;: &#x27;+919077534217&#x27;, &#x27;userStatus&#x27;: 9}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Updating User details for username Stephen_138399635198011555
+INFO:root:PUT	::: https://petstore.swagger.io/v2/user/Stephen_138399635198011555
+INFO:root:BODY	::: {&#x27;id&#x27;: 584422046, &#x27;username&#x27;: &#x27;Eric_138399635208994356&#x27;, &#x27;firstName&#x27;: &#x27;Lisa&#x27;, &#x27;lastName&#x27;: &#x27;Andrews&#x27;, &#x27;email&#x27;: 27742, &#x27;password&#x27;: &#x27;&amp;8Pag1JO7O&#x27;, &#x27;phone&#x27;: &#x27;9AQn*AhJ#)&#x27;, &#x27;userStatus&#x27;: 6}
+INFO:root:Validating STATUS_CODE is BAD_REQUEST
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:24 Creating User
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user
+INFO     root:rest_client.py:91 BODY	::: {&#x27;id&#x27;: 420374918, &#x27;username&#x27;: &#x27;Stephen_138399635198011555&#x27;, &#x27;firstName&#x27;: &#x27;Melanie&#x27;, &#x27;lastName&#x27;: &#x27;Rodriguez&#x27;, &#x27;email&#x27;: &#x27;melissa.franklin@burton.com&#x27;, &#x27;password&#x27;: &#x27;P_#8SidG^&amp;&#x27;, &#x27;phone&#x27;: &#x27;+919077534217&#x27;, &#x27;userStatus&#x27;: 9}
+INFO     root:test_user_update.py:65 Validating STATUS_CODE is OK
+INFO     root:users.py:60 Updating User details for username Stephen_138399635198011555
+INFO     root:rest_client.py:77 PUT	::: https://petstore.swagger.io/v2/user/Stephen_138399635198011555
+INFO     root:rest_client.py:81 BODY	::: {&#x27;id&#x27;: 584422046, &#x27;username&#x27;: &#x27;Eric_138399635208994356&#x27;, &#x27;firstName&#x27;: &#x27;Lisa&#x27;, &#x27;lastName&#x27;: &#x27;Andrews&#x27;, &#x27;email&#x27;: 27742, &#x27;password&#x27;: &#x27;&amp;8Pag1JO7O&#x27;, &#x27;phone&#x27;: &#x27;9AQn*AhJ#)&#x27;, &#x27;userStatus&#x27;: 6}
+INFO     root:test_user_update.py:76 Validating STATUS_CODE is BAD_REQUEST<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/pets_tests/test_end_to_end.py::test_create_multiple_pets_edit_status_and_find_by_edited_status</td>
+          <td class="col-duration">34.32</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 413121149, &#x27;name&#x27;: &#x27;physical sell when&#x27;}, {&#x27;id&#x27;: 217066344, &#x27;name&#x27;: &#x27;affect property quickly&#x27;}, {&#x27;id&#x27;: 91693773, &#x27;name&#x27;: &#x27;low item manage&#x27;}, {&#x27;id&#x27;: 920384160, &#x27;name&#x27;: &#x27;morning none computer&#x27;}, {&#x27;id&#x27;: 781552570, &#x27;name&#x27;: &#x27;series early improve&#x27;}], &#x27;id&#x27;: 512038415, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Joshua&#x27;, &#x27;photoUrls&#x27;: [], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 895731356, &#x27;name&#x27;: &#x27;data care cultural&#x27;}, {&#x27;id&#x27;: 925750483, &#x27;name&#x27;: &#x27;south what manage&#x27;}, {&#x27;id&#x27;: 914894962, &#x27;name&#x27;: &#x27;officer word three&#x27;}, {&#x27;id&#x27;: 507583147, &#x27;name&#x27;: &#x27;space modern key&#x27;}, {&#x27;id&#x27;: 426053328, &#x27;name&#x27;: &#x27;down seat street&#x27;}], &#x27;id&#x27;: 950503445, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Jennifer&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.martinez.org/suddenly.jpg&#x27;, &#x27;https://www.martinez.org/smile.png&#x27;, &#x27;https://www.martinez.org/right.png&#x27;, &#x27;https://www.martinez.org/now.bmp&#x27;, &#x27;https://www.martinez.org/father.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 378326376, &#x27;name&#x27;: &#x27;suggest mother take&#x27;}, {&#x27;id&#x27;: 674570677, &#x27;name&#x27;: &#x27;treat citizen behind&#x27;}, {&#x27;id&#x27;: 161180032, &#x27;name&#x27;: &#x27;why through concern&#x27;}, {&#x27;id&#x27;: 822264186, &#x27;name&#x27;: &#x27;century politics positive&#x27;}, {&#x27;id&#x27;: 345272451, &#x27;name&#x27;: &#x27;sort anyone decade&#x27;}], &#x27;id&#x27;: 904303523, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Kristen&#x27;, &#x27;photoUrls&#x27;: [], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 863873856, &#x27;name&#x27;: &#x27;test out medical&#x27;}, {&#x27;id&#x27;: 474145485, &#x27;name&#x27;: &#x27;we develop to&#x27;}, {&#x27;id&#x27;: 28694400, &#x27;name&#x27;: &#x27;money political spring&#x27;}, {&#x27;id&#x27;: 361519178, &#x27;name&#x27;: &#x27;fear sister medical&#x27;}, {&#x27;id&#x27;: 433480655, &#x27;name&#x27;: &#x27;section well indeed&#x27;}], &#x27;id&#x27;: 973505773, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Karen&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://oliver.com/growth.png&#x27;, &#x27;http://oliver.com/station.png&#x27;, &#x27;http://oliver.com/by.jpg&#x27;, &#x27;http://oliver.com/gas.png&#x27;, &#x27;http://oliver.com/sister.jpg&#x27;, &#x27;http://oliver.com/government.png&#x27;, &#x27;http://oliver.com/know.bmp&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 524080880, &#x27;name&#x27;: &#x27;recent past compare&#x27;}, {&#x27;id&#x27;: 787669624, &#x27;name&#x27;: &#x27;strategy morning group&#x27;}, {&#x27;id&#x27;: 853578343, &#x27;name&#x27;: &#x27;law type central&#x27;}, {&#x27;id&#x27;: 858934920, &#x27;name&#x27;: &#x27;allow hundred project&#x27;}, {&#x27;id&#x27;: 524775700, &#x27;name&#x27;: &#x27;create him up&#x27;}], &#x27;id&#x27;: 136848494, &#x27;category&#x27;: {&#x27;id&#x27;: 2, &#x27;name&#x27;: &#x27;Cat&#x27;}, &#x27;name&#x27;: &#x27;Tami&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://bishop-donovan.com/last.png&#x27;, &#x27;https://bishop-donovan.com/seat.jpg&#x27;, &#x27;https://bishop-donovan.com/prevent.bmp&#x27;, &#x27;https://bishop-donovan.com/machine.jpg&#x27;, &#x27;https://bishop-donovan.com/big.png&#x27;, &#x27;https://bishop-donovan.com/main.png&#x27;, &#x27;https://bishop-donovan.com/usually.png&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 456159268, &#x27;name&#x27;: &#x27;drive own could&#x27;}, {&#x27;id&#x27;: 652792906, &#x27;name&#x27;: &#x27;west explain capital&#x27;}, {&#x27;id&#x27;: 880044887, &#x27;name&#x27;: &#x27;short after thought&#x27;}, {&#x27;id&#x27;: 937945493, &#x27;name&#x27;: &#x27;blood agent painting&#x27;}, {&#x27;id&#x27;: 738668650, &#x27;name&#x27;: &#x27;run company care&#x27;}], &#x27;id&#x27;: 524931948, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;William&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.dean-rivera.com/my.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 376125358, &#x27;name&#x27;: &#x27;prevent way attorney&#x27;}, {&#x27;id&#x27;: 825388863, &#x27;name&#x27;: &#x27;store six many&#x27;}, {&#x27;id&#x27;: 566904216, &#x27;name&#x27;: &#x27;Republican all occur&#x27;}, {&#x27;id&#x27;: 567365647, &#x27;name&#x27;: &#x27;particular our wind&#x27;}, {&#x27;id&#x27;: 942889997, &#x27;name&#x27;: &#x27;product western indeed&#x27;}], &#x27;id&#x27;: 159426476, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Taylor&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://scott.com/bit.jpg&#x27;, &#x27;https://scott.com/my.png&#x27;, &#x27;https://scott.com/business.bmp&#x27;, &#x27;https://scott.com/city.jpg&#x27;, &#x27;https://scott.com/check.jpg&#x27;, &#x27;https://scott.com/fish.bmp&#x27;, &#x27;https://scott.com/boy.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 420708362, &#x27;name&#x27;: &#x27;four citizen understand&#x27;}, {&#x27;id&#x27;: 615412353, &#x27;name&#x27;: &#x27;real a agree&#x27;}, {&#x27;id&#x27;: 844590104, &#x27;name&#x27;: &#x27;low back force&#x27;}, {&#x27;id&#x27;: 517385060, &#x27;name&#x27;: &#x27;central fact mean&#x27;}, {&#x27;id&#x27;: 274147882, &#x27;name&#x27;: &#x27;some among thing&#x27;}], &#x27;id&#x27;: 786253410, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Jeffrey&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.harvey.com/pick.jpg&#x27;, &#x27;https://www.harvey.com/individual.png&#x27;, &#x27;https://www.harvey.com/life.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 526608186, &#x27;name&#x27;: &#x27;station at spring&#x27;}, {&#x27;id&#x27;: 875637471, &#x27;name&#x27;: &#x27;role generation garden&#x27;}, {&#x27;id&#x27;: 627398759, &#x27;name&#x27;: &#x27;major discussion Mrs&#x27;}, {&#x27;id&#x27;: 527281619, &#x27;name&#x27;: &#x27;decide choice movie&#x27;}, {&#x27;id&#x27;: 101519187, &#x27;name&#x27;: &#x27;community investment itself&#x27;}], &#x27;id&#x27;: 298467970, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Crystal&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://fowler.com/check.jpg&#x27;, &#x27;http://fowler.com/pass.png&#x27;, &#x27;http://fowler.com/program.png&#x27;, &#x27;http://fowler.com/attorney.jpg&#x27;, &#x27;http://fowler.com/safe.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 369794588, &#x27;name&#x27;: &#x27;former a later&#x27;}, {&#x27;id&#x27;: 22418809, &#x27;name&#x27;: &#x27;eight food language&#x27;}, {&#x27;id&#x27;: 3888805, &#x27;name&#x27;: &#x27;personal boy and&#x27;}, {&#x27;id&#x27;: 852479916, &#x27;name&#x27;: &#x27;move no something&#x27;}, {&#x27;id&#x27;: 424641133, &#x27;name&#x27;: &#x27;war drug follow&#x27;}], &#x27;id&#x27;: 111131800, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Haley&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.waller-carter.net/big.bmp&#x27;, &#x27;http://www.waller-carter.net/condition.bmp&#x27;, &#x27;http://www.waller-carter.net/discover.png&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(512038415)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(950503445)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(904303523)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(973505773)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(136848494)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(524931948)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(159426476)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(786253410)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(298467970)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(111131800)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(512038415)
+INFO:root:Getting Pets details for id 512038415
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/512038415
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(950503445)
+INFO:root:Getting Pets details for id 950503445
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/950503445
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(904303523)
+INFO:root:Getting Pets details for id 904303523
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/904303523
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(973505773)
+INFO:root:Getting Pets details for id 973505773
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/973505773
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(136848494)
+INFO:root:Getting Pets details for id 136848494
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/136848494
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(524931948)
+INFO:root:Getting Pets details for id 524931948
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/524931948
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(159426476)
+INFO:root:Getting Pets details for id 159426476
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/159426476
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(786253410)
+INFO:root:Getting Pets details for id 786253410
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/786253410
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(298467970)
+INFO:root:Getting Pets details for id 298467970
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/298467970
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(111131800)
+INFO:root:Getting Pets details for id 111131800
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/111131800
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:All Pets are created successfully.
+INFO:root:Updating Pet details for pet id 524931948
+INFO:root:PUT	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 456159268, &#x27;name&#x27;: &#x27;drive own could&#x27;}, {&#x27;id&#x27;: 652792906, &#x27;name&#x27;: &#x27;west explain capital&#x27;}, {&#x27;id&#x27;: 880044887, &#x27;name&#x27;: &#x27;short after thought&#x27;}, {&#x27;id&#x27;: 937945493, &#x27;name&#x27;: &#x27;blood agent painting&#x27;}, {&#x27;id&#x27;: 738668650, &#x27;name&#x27;: &#x27;run company care&#x27;}], &#x27;id&#x27;: 524931948, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;updated_William&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.dean-rivera.com/my.jpg&#x27;, &#x27;https://williams.org/community.bmp&#x27;], &#x27;status&#x27;: &#x27;updated_sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for update_pet()
+INFO:root:Validating Response BODY for update_pet()
+INFO:root:Pet with id 524931948 updated successfully.
+INFO:root:Getting all Pets with status {&#x27;status&#x27;: &#x27;updated_sold&#x27;}
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=updated_sold
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Pet with id 524931948 and status updated_sold is found using findByStatus()
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 413121149, &#x27;name&#x27;: &#x27;physical sell when&#x27;}, {&#x27;id&#x27;: 217066344, &#x27;name&#x27;: &#x27;affect property quickly&#x27;}, {&#x27;id&#x27;: 91693773, &#x27;name&#x27;: &#x27;low item manage&#x27;}, {&#x27;id&#x27;: 920384160, &#x27;name&#x27;: &#x27;morning none computer&#x27;}, {&#x27;id&#x27;: 781552570, &#x27;name&#x27;: &#x27;series early improve&#x27;}], &#x27;id&#x27;: 512038415, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Joshua&#x27;, &#x27;photoUrls&#x27;: [], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 895731356, &#x27;name&#x27;: &#x27;data care cultural&#x27;}, {&#x27;id&#x27;: 925750483, &#x27;name&#x27;: &#x27;south what manage&#x27;}, {&#x27;id&#x27;: 914894962, &#x27;name&#x27;: &#x27;officer word three&#x27;}, {&#x27;id&#x27;: 507583147, &#x27;name&#x27;: &#x27;space modern key&#x27;}, {&#x27;id&#x27;: 426053328, &#x27;name&#x27;: &#x27;down seat street&#x27;}], &#x27;id&#x27;: 950503445, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Jennifer&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.martinez.org/suddenly.jpg&#x27;, &#x27;https://www.martinez.org/smile.png&#x27;, &#x27;https://www.martinez.org/right.png&#x27;, &#x27;https://www.martinez.org/now.bmp&#x27;, &#x27;https://www.martinez.org/father.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 378326376, &#x27;name&#x27;: &#x27;suggest mother take&#x27;}, {&#x27;id&#x27;: 674570677, &#x27;name&#x27;: &#x27;treat citizen behind&#x27;}, {&#x27;id&#x27;: 161180032, &#x27;name&#x27;: &#x27;why through concern&#x27;}, {&#x27;id&#x27;: 822264186, &#x27;name&#x27;: &#x27;century politics positive&#x27;}, {&#x27;id&#x27;: 345272451, &#x27;name&#x27;: &#x27;sort anyone decade&#x27;}], &#x27;id&#x27;: 904303523, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Kristen&#x27;, &#x27;photoUrls&#x27;: [], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 863873856, &#x27;name&#x27;: &#x27;test out medical&#x27;}, {&#x27;id&#x27;: 474145485, &#x27;name&#x27;: &#x27;we develop to&#x27;}, {&#x27;id&#x27;: 28694400, &#x27;name&#x27;: &#x27;money political spring&#x27;}, {&#x27;id&#x27;: 361519178, &#x27;name&#x27;: &#x27;fear sister medical&#x27;}, {&#x27;id&#x27;: 433480655, &#x27;name&#x27;: &#x27;section well indeed&#x27;}], &#x27;id&#x27;: 973505773, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Karen&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://oliver.com/growth.png&#x27;, &#x27;http://oliver.com/station.png&#x27;, &#x27;http://oliver.com/by.jpg&#x27;, &#x27;http://oliver.com/gas.png&#x27;, &#x27;http://oliver.com/sister.jpg&#x27;, &#x27;http://oliver.com/government.png&#x27;, &#x27;http://oliver.com/know.bmp&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 524080880, &#x27;name&#x27;: &#x27;recent past compare&#x27;}, {&#x27;id&#x27;: 787669624, &#x27;name&#x27;: &#x27;strategy morning group&#x27;}, {&#x27;id&#x27;: 853578343, &#x27;name&#x27;: &#x27;law type central&#x27;}, {&#x27;id&#x27;: 858934920, &#x27;name&#x27;: &#x27;allow hundred project&#x27;}, {&#x27;id&#x27;: 524775700, &#x27;name&#x27;: &#x27;create him up&#x27;}], &#x27;id&#x27;: 136848494, &#x27;category&#x27;: {&#x27;id&#x27;: 2, &#x27;name&#x27;: &#x27;Cat&#x27;}, &#x27;name&#x27;: &#x27;Tami&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://bishop-donovan.com/last.png&#x27;, &#x27;https://bishop-donovan.com/seat.jpg&#x27;, &#x27;https://bishop-donovan.com/prevent.bmp&#x27;, &#x27;https://bishop-donovan.com/machine.jpg&#x27;, &#x27;https://bishop-donovan.com/big.png&#x27;, &#x27;https://bishop-donovan.com/main.png&#x27;, &#x27;https://bishop-donovan.com/usually.png&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 456159268, &#x27;name&#x27;: &#x27;drive own could&#x27;}, {&#x27;id&#x27;: 652792906, &#x27;name&#x27;: &#x27;west explain capital&#x27;}, {&#x27;id&#x27;: 880044887, &#x27;name&#x27;: &#x27;short after thought&#x27;}, {&#x27;id&#x27;: 937945493, &#x27;name&#x27;: &#x27;blood agent painting&#x27;}, {&#x27;id&#x27;: 738668650, &#x27;name&#x27;: &#x27;run company care&#x27;}], &#x27;id&#x27;: 524931948, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;William&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.dean-rivera.com/my.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 376125358, &#x27;name&#x27;: &#x27;prevent way attorney&#x27;}, {&#x27;id&#x27;: 825388863, &#x27;name&#x27;: &#x27;store six many&#x27;}, {&#x27;id&#x27;: 566904216, &#x27;name&#x27;: &#x27;Republican all occur&#x27;}, {&#x27;id&#x27;: 567365647, &#x27;name&#x27;: &#x27;particular our wind&#x27;}, {&#x27;id&#x27;: 942889997, &#x27;name&#x27;: &#x27;product western indeed&#x27;}], &#x27;id&#x27;: 159426476, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Taylor&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://scott.com/bit.jpg&#x27;, &#x27;https://scott.com/my.png&#x27;, &#x27;https://scott.com/business.bmp&#x27;, &#x27;https://scott.com/city.jpg&#x27;, &#x27;https://scott.com/check.jpg&#x27;, &#x27;https://scott.com/fish.bmp&#x27;, &#x27;https://scott.com/boy.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 420708362, &#x27;name&#x27;: &#x27;four citizen understand&#x27;}, {&#x27;id&#x27;: 615412353, &#x27;name&#x27;: &#x27;real a agree&#x27;}, {&#x27;id&#x27;: 844590104, &#x27;name&#x27;: &#x27;low back force&#x27;}, {&#x27;id&#x27;: 517385060, &#x27;name&#x27;: &#x27;central fact mean&#x27;}, {&#x27;id&#x27;: 274147882, &#x27;name&#x27;: &#x27;some among thing&#x27;}], &#x27;id&#x27;: 786253410, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Jeffrey&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.harvey.com/pick.jpg&#x27;, &#x27;https://www.harvey.com/individual.png&#x27;, &#x27;https://www.harvey.com/life.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 526608186, &#x27;name&#x27;: &#x27;station at spring&#x27;}, {&#x27;id&#x27;: 875637471, &#x27;name&#x27;: &#x27;role generation garden&#x27;}, {&#x27;id&#x27;: 627398759, &#x27;name&#x27;: &#x27;major discussion Mrs&#x27;}, {&#x27;id&#x27;: 527281619, &#x27;name&#x27;: &#x27;decide choice movie&#x27;}, {&#x27;id&#x27;: 101519187, &#x27;name&#x27;: &#x27;community investment itself&#x27;}], &#x27;id&#x27;: 298467970, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Crystal&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://fowler.com/check.jpg&#x27;, &#x27;http://fowler.com/pass.png&#x27;, &#x27;http://fowler.com/program.png&#x27;, &#x27;http://fowler.com/attorney.jpg&#x27;, &#x27;http://fowler.com/safe.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 369794588, &#x27;name&#x27;: &#x27;former a later&#x27;}, {&#x27;id&#x27;: 22418809, &#x27;name&#x27;: &#x27;eight food language&#x27;}, {&#x27;id&#x27;: 3888805, &#x27;name&#x27;: &#x27;personal boy and&#x27;}, {&#x27;id&#x27;: 852479916, &#x27;name&#x27;: &#x27;move no something&#x27;}, {&#x27;id&#x27;: 424641133, &#x27;name&#x27;: &#x27;war drug follow&#x27;}], &#x27;id&#x27;: 111131800, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Haley&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.waller-carter.net/big.bmp&#x27;, &#x27;http://www.waller-carter.net/condition.bmp&#x27;, &#x27;http://www.waller-carter.net/discover.png&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(512038415)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(950503445)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(904303523)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(973505773)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(136848494)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(524931948)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(159426476)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(786253410)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(298467970)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:28 Validating SCHEMA and RESPONSE BODY for create_pet(111131800)
+INFO     root:test_end_to_end.py:29 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:31 Validating Response BODY 
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(512038415)
+INFO     root:pets.py:47 Getting Pets details for id 512038415
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/512038415
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(950503445)
+INFO     root:pets.py:47 Getting Pets details for id 950503445
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/950503445
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(904303523)
+INFO     root:pets.py:47 Getting Pets details for id 904303523
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/904303523
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(973505773)
+INFO     root:pets.py:47 Getting Pets details for id 973505773
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/973505773
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(136848494)
+INFO     root:pets.py:47 Getting Pets details for id 136848494
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/136848494
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(524931948)
+INFO     root:pets.py:47 Getting Pets details for id 524931948
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/524931948
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(159426476)
+INFO     root:pets.py:47 Getting Pets details for id 159426476
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/159426476
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(786253410)
+INFO     root:pets.py:47 Getting Pets details for id 786253410
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/786253410
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(298467970)
+INFO     root:pets.py:47 Getting Pets details for id 298467970
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/298467970
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:36 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(111131800)
+INFO     root:pets.py:47 Getting Pets details for id 111131800
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/111131800
+INFO     root:test_end_to_end.py:38 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_end_to_end.py:42 Validating Response BODY
+INFO     root:test_end_to_end.py:45 All Pets are created successfully.
+INFO     root:pets.py:57 Updating Pet details for pet id 524931948
+INFO     root:rest_client.py:77 PUT	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:81 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 456159268, &#x27;name&#x27;: &#x27;drive own could&#x27;}, {&#x27;id&#x27;: 652792906, &#x27;name&#x27;: &#x27;west explain capital&#x27;}, {&#x27;id&#x27;: 880044887, &#x27;name&#x27;: &#x27;short after thought&#x27;}, {&#x27;id&#x27;: 937945493, &#x27;name&#x27;: &#x27;blood agent painting&#x27;}, {&#x27;id&#x27;: 738668650, &#x27;name&#x27;: &#x27;run company care&#x27;}], &#x27;id&#x27;: 524931948, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;updated_William&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.dean-rivera.com/my.jpg&#x27;, &#x27;https://williams.org/community.bmp&#x27;], &#x27;status&#x27;: &#x27;updated_sold&#x27;}
+INFO     root:test_end_to_end.py:53 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:55 Validating Response SCHEMA for update_pet()
+INFO     root:test_end_to_end.py:57 Validating Response BODY for update_pet()
+INFO     root:test_end_to_end.py:60 Pet with id 524931948 updated successfully.
+INFO     root:pets.py:68 Getting all Pets with status {&#x27;status&#x27;: &#x27;updated_sold&#x27;}
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=updated_sold
+INFO     root:test_end_to_end.py:63 Validating STATUS_CODE is OK
+INFO     root:test_end_to_end.py:74 Pet with id 524931948 and status updated_sold is found using findByStatus()<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/pets_tests/test_get_pet_by_status.py::test_get_pet_by_valid_status</td>
+          <td class="col-duration">28.29</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 543859087, &#x27;name&#x27;: &#x27;well yourself note&#x27;}, {&#x27;id&#x27;: 267588883, &#x27;name&#x27;: &#x27;find although movie&#x27;}, {&#x27;id&#x27;: 834972022, &#x27;name&#x27;: &#x27;foot drive a&#x27;}, {&#x27;id&#x27;: 4575142, &#x27;name&#x27;: &#x27;skin lead degree&#x27;}, {&#x27;id&#x27;: 661767973, &#x27;name&#x27;: &#x27;response live among&#x27;}], &#x27;id&#x27;: 775354660, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Erin&#x27;, &#x27;photoUrls&#x27;: [], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 111242107, &#x27;name&#x27;: &#x27;fill scientist drive&#x27;}, {&#x27;id&#x27;: 10526702, &#x27;name&#x27;: &#x27;since need half&#x27;}, {&#x27;id&#x27;: 5149296, &#x27;name&#x27;: &#x27;reach window focus&#x27;}, {&#x27;id&#x27;: 139186120, &#x27;name&#x27;: &#x27;sure part main&#x27;}, {&#x27;id&#x27;: 347863179, &#x27;name&#x27;: &#x27;ball small national&#x27;}], &#x27;id&#x27;: 630491681, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Anthony&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.williams-medina.com/already.jpg&#x27;, &#x27;http://www.williams-medina.com/myself.png&#x27;, &#x27;http://www.williams-medina.com/wind.jpg&#x27;, &#x27;http://www.williams-medina.com/attack.bmp&#x27;, &#x27;http://www.williams-medina.com/hour.bmp&#x27;, &#x27;http://www.williams-medina.com/to.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 729850096, &#x27;name&#x27;: &#x27;health program investment&#x27;}, {&#x27;id&#x27;: 238881799, &#x27;name&#x27;: &#x27;else beyond paper&#x27;}, {&#x27;id&#x27;: 711452164, &#x27;name&#x27;: &#x27;section move experience&#x27;}, {&#x27;id&#x27;: 770820489, &#x27;name&#x27;: &#x27;yourself purpose recently&#x27;}, {&#x27;id&#x27;: 681397819, &#x27;name&#x27;: &#x27;herself part finally&#x27;}], &#x27;id&#x27;: 294190880, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Tiffany&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://singleton.info/message.png&#x27;, &#x27;https://singleton.info/design.jpg&#x27;, &#x27;https://singleton.info/fact.jpg&#x27;, &#x27;https://singleton.info/industry.bmp&#x27;, &#x27;https://singleton.info/cultural.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 736044548, &#x27;name&#x27;: &#x27;force structure politics&#x27;}, {&#x27;id&#x27;: 703935963, &#x27;name&#x27;: &#x27;per ball pull&#x27;}, {&#x27;id&#x27;: 213060969, &#x27;name&#x27;: &#x27;her in send&#x27;}, {&#x27;id&#x27;: 210164116, &#x27;name&#x27;: &#x27;why serious hour&#x27;}, {&#x27;id&#x27;: 318567964, &#x27;name&#x27;: &#x27;friend two partner&#x27;}], &#x27;id&#x27;: 767627965, &#x27;category&#x27;: {&#x27;id&#x27;: 2, &#x27;name&#x27;: &#x27;Cat&#x27;}, &#x27;name&#x27;: &#x27;Michael&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.guerra-berry.org/family.png&#x27;, &#x27;http://www.guerra-berry.org/quality.png&#x27;, &#x27;http://www.guerra-berry.org/last.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 951040952, &#x27;name&#x27;: &#x27;issue keep but&#x27;}, {&#x27;id&#x27;: 78253054, &#x27;name&#x27;: &#x27;reflect movement table&#x27;}, {&#x27;id&#x27;: 386974123, &#x27;name&#x27;: &#x27;product current including&#x27;}, {&#x27;id&#x27;: 898615669, &#x27;name&#x27;: &#x27;policy none team&#x27;}, {&#x27;id&#x27;: 895733459, &#x27;name&#x27;: &#x27;seem play feel&#x27;}], &#x27;id&#x27;: 256015275, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;John&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.joseph.com/service.png&#x27;, &#x27;http://www.joseph.com/wife.bmp&#x27;, &#x27;http://www.joseph.com/support.jpg&#x27;, &#x27;http://www.joseph.com/often.bmp&#x27;, &#x27;http://www.joseph.com/low.png&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 842503850, &#x27;name&#x27;: &#x27;none her choose&#x27;}, {&#x27;id&#x27;: 637417869, &#x27;name&#x27;: &#x27;one point pass&#x27;}, {&#x27;id&#x27;: 859465214, &#x27;name&#x27;: &#x27;large before could&#x27;}, {&#x27;id&#x27;: 785608189, &#x27;name&#x27;: &#x27;police nation during&#x27;}, {&#x27;id&#x27;: 457117716, &#x27;name&#x27;: &#x27;speak create only&#x27;}], &#x27;id&#x27;: 925398938, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Charles&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.stevens.com/no.jpg&#x27;, &#x27;http://www.stevens.com/although.png&#x27;, &#x27;http://www.stevens.com/become.bmp&#x27;, &#x27;http://www.stevens.com/various.jpg&#x27;, &#x27;http://www.stevens.com/conference.jpg&#x27;, &#x27;http://www.stevens.com/today.png&#x27;, &#x27;http://www.stevens.com/address.bmp&#x27;, &#x27;http://www.stevens.com/might.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 932685959, &#x27;name&#x27;: &#x27;push exist minute&#x27;}, {&#x27;id&#x27;: 161716048, &#x27;name&#x27;: &#x27;arm civil loss&#x27;}, {&#x27;id&#x27;: 46877486, &#x27;name&#x27;: &#x27;up sense individual&#x27;}, {&#x27;id&#x27;: 991027276, &#x27;name&#x27;: &#x27;letter whether him&#x27;}, {&#x27;id&#x27;: 330299696, &#x27;name&#x27;: &#x27;environment source attack&#x27;}], &#x27;id&#x27;: 482230784, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Ronald&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.owens.com/think.png&#x27;, &#x27;https://www.owens.com/voice.png&#x27;, &#x27;https://www.owens.com/task.png&#x27;, &#x27;https://www.owens.com/tend.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 314735726, &#x27;name&#x27;: &#x27;front beat religious&#x27;}, {&#x27;id&#x27;: 623319581, &#x27;name&#x27;: &#x27;address pattern black&#x27;}, {&#x27;id&#x27;: 482770565, &#x27;name&#x27;: &#x27;next success production&#x27;}, {&#x27;id&#x27;: 146284047, &#x27;name&#x27;: &#x27;difficult expert statement&#x27;}, {&#x27;id&#x27;: 66270579, &#x27;name&#x27;: &#x27;top artist above&#x27;}], &#x27;id&#x27;: 252704198, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Abigail&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.cuevas.com/hard.png&#x27;, &#x27;http://www.cuevas.com/finish.bmp&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 243246398, &#x27;name&#x27;: &#x27;nice partner half&#x27;}, {&#x27;id&#x27;: 34454846, &#x27;name&#x27;: &#x27;human part certain&#x27;}, {&#x27;id&#x27;: 286651865, &#x27;name&#x27;: &#x27;throughout help involve&#x27;}, {&#x27;id&#x27;: 198568022, &#x27;name&#x27;: &#x27;necessary consider offer&#x27;}, {&#x27;id&#x27;: 83860622, &#x27;name&#x27;: &#x27;Congress name fight&#x27;}], &#x27;id&#x27;: 581746550, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;James&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.lane-perez.com/type.jpg&#x27;, &#x27;http://www.lane-perez.com/realize.png&#x27;, &#x27;http://www.lane-perez.com/long.bmp&#x27;, &#x27;http://www.lane-perez.com/oil.png&#x27;, &#x27;http://www.lane-perez.com/anything.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 674529894, &#x27;name&#x27;: &#x27;under far effect&#x27;}, {&#x27;id&#x27;: 497370309, &#x27;name&#x27;: &#x27;black check officer&#x27;}, {&#x27;id&#x27;: 228593045, &#x27;name&#x27;: &#x27;wonder hope TV&#x27;}, {&#x27;id&#x27;: 3330221, &#x27;name&#x27;: &#x27;sell common area&#x27;}, {&#x27;id&#x27;: 914981749, &#x27;name&#x27;: &#x27;plan his PM&#x27;}], &#x27;id&#x27;: 640630300, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Stephanie&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.tate.com/member.bmp&#x27;, &#x27;https://www.tate.com/join.jpg&#x27;, &#x27;https://www.tate.com/clear.jpg&#x27;, &#x27;https://www.tate.com/increase.bmp&#x27;, &#x27;https://www.tate.com/it.jpg&#x27;, &#x27;https://www.tate.com/while.jpg&#x27;, &#x27;https://www.tate.com/whether.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Getting all Pets with status {&#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=sold
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Getting all Pets with status {&#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=available
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Getting all Pets with status {&#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=pending
+INFO:root:Validating STATUS_CODE is OK
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 543859087, &#x27;name&#x27;: &#x27;well yourself note&#x27;}, {&#x27;id&#x27;: 267588883, &#x27;name&#x27;: &#x27;find although movie&#x27;}, {&#x27;id&#x27;: 834972022, &#x27;name&#x27;: &#x27;foot drive a&#x27;}, {&#x27;id&#x27;: 4575142, &#x27;name&#x27;: &#x27;skin lead degree&#x27;}, {&#x27;id&#x27;: 661767973, &#x27;name&#x27;: &#x27;response live among&#x27;}], &#x27;id&#x27;: 775354660, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Erin&#x27;, &#x27;photoUrls&#x27;: [], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 111242107, &#x27;name&#x27;: &#x27;fill scientist drive&#x27;}, {&#x27;id&#x27;: 10526702, &#x27;name&#x27;: &#x27;since need half&#x27;}, {&#x27;id&#x27;: 5149296, &#x27;name&#x27;: &#x27;reach window focus&#x27;}, {&#x27;id&#x27;: 139186120, &#x27;name&#x27;: &#x27;sure part main&#x27;}, {&#x27;id&#x27;: 347863179, &#x27;name&#x27;: &#x27;ball small national&#x27;}], &#x27;id&#x27;: 630491681, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Anthony&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.williams-medina.com/already.jpg&#x27;, &#x27;http://www.williams-medina.com/myself.png&#x27;, &#x27;http://www.williams-medina.com/wind.jpg&#x27;, &#x27;http://www.williams-medina.com/attack.bmp&#x27;, &#x27;http://www.williams-medina.com/hour.bmp&#x27;, &#x27;http://www.williams-medina.com/to.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 729850096, &#x27;name&#x27;: &#x27;health program investment&#x27;}, {&#x27;id&#x27;: 238881799, &#x27;name&#x27;: &#x27;else beyond paper&#x27;}, {&#x27;id&#x27;: 711452164, &#x27;name&#x27;: &#x27;section move experience&#x27;}, {&#x27;id&#x27;: 770820489, &#x27;name&#x27;: &#x27;yourself purpose recently&#x27;}, {&#x27;id&#x27;: 681397819, &#x27;name&#x27;: &#x27;herself part finally&#x27;}], &#x27;id&#x27;: 294190880, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Tiffany&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://singleton.info/message.png&#x27;, &#x27;https://singleton.info/design.jpg&#x27;, &#x27;https://singleton.info/fact.jpg&#x27;, &#x27;https://singleton.info/industry.bmp&#x27;, &#x27;https://singleton.info/cultural.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 736044548, &#x27;name&#x27;: &#x27;force structure politics&#x27;}, {&#x27;id&#x27;: 703935963, &#x27;name&#x27;: &#x27;per ball pull&#x27;}, {&#x27;id&#x27;: 213060969, &#x27;name&#x27;: &#x27;her in send&#x27;}, {&#x27;id&#x27;: 210164116, &#x27;name&#x27;: &#x27;why serious hour&#x27;}, {&#x27;id&#x27;: 318567964, &#x27;name&#x27;: &#x27;friend two partner&#x27;}], &#x27;id&#x27;: 767627965, &#x27;category&#x27;: {&#x27;id&#x27;: 2, &#x27;name&#x27;: &#x27;Cat&#x27;}, &#x27;name&#x27;: &#x27;Michael&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.guerra-berry.org/family.png&#x27;, &#x27;http://www.guerra-berry.org/quality.png&#x27;, &#x27;http://www.guerra-berry.org/last.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 951040952, &#x27;name&#x27;: &#x27;issue keep but&#x27;}, {&#x27;id&#x27;: 78253054, &#x27;name&#x27;: &#x27;reflect movement table&#x27;}, {&#x27;id&#x27;: 386974123, &#x27;name&#x27;: &#x27;product current including&#x27;}, {&#x27;id&#x27;: 898615669, &#x27;name&#x27;: &#x27;policy none team&#x27;}, {&#x27;id&#x27;: 895733459, &#x27;name&#x27;: &#x27;seem play feel&#x27;}], &#x27;id&#x27;: 256015275, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;John&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.joseph.com/service.png&#x27;, &#x27;http://www.joseph.com/wife.bmp&#x27;, &#x27;http://www.joseph.com/support.jpg&#x27;, &#x27;http://www.joseph.com/often.bmp&#x27;, &#x27;http://www.joseph.com/low.png&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 842503850, &#x27;name&#x27;: &#x27;none her choose&#x27;}, {&#x27;id&#x27;: 637417869, &#x27;name&#x27;: &#x27;one point pass&#x27;}, {&#x27;id&#x27;: 859465214, &#x27;name&#x27;: &#x27;large before could&#x27;}, {&#x27;id&#x27;: 785608189, &#x27;name&#x27;: &#x27;police nation during&#x27;}, {&#x27;id&#x27;: 457117716, &#x27;name&#x27;: &#x27;speak create only&#x27;}], &#x27;id&#x27;: 925398938, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Charles&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.stevens.com/no.jpg&#x27;, &#x27;http://www.stevens.com/although.png&#x27;, &#x27;http://www.stevens.com/become.bmp&#x27;, &#x27;http://www.stevens.com/various.jpg&#x27;, &#x27;http://www.stevens.com/conference.jpg&#x27;, &#x27;http://www.stevens.com/today.png&#x27;, &#x27;http://www.stevens.com/address.bmp&#x27;, &#x27;http://www.stevens.com/might.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 932685959, &#x27;name&#x27;: &#x27;push exist minute&#x27;}, {&#x27;id&#x27;: 161716048, &#x27;name&#x27;: &#x27;arm civil loss&#x27;}, {&#x27;id&#x27;: 46877486, &#x27;name&#x27;: &#x27;up sense individual&#x27;}, {&#x27;id&#x27;: 991027276, &#x27;name&#x27;: &#x27;letter whether him&#x27;}, {&#x27;id&#x27;: 330299696, &#x27;name&#x27;: &#x27;environment source attack&#x27;}], &#x27;id&#x27;: 482230784, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Ronald&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.owens.com/think.png&#x27;, &#x27;https://www.owens.com/voice.png&#x27;, &#x27;https://www.owens.com/task.png&#x27;, &#x27;https://www.owens.com/tend.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 314735726, &#x27;name&#x27;: &#x27;front beat religious&#x27;}, {&#x27;id&#x27;: 623319581, &#x27;name&#x27;: &#x27;address pattern black&#x27;}, {&#x27;id&#x27;: 482770565, &#x27;name&#x27;: &#x27;next success production&#x27;}, {&#x27;id&#x27;: 146284047, &#x27;name&#x27;: &#x27;difficult expert statement&#x27;}, {&#x27;id&#x27;: 66270579, &#x27;name&#x27;: &#x27;top artist above&#x27;}], &#x27;id&#x27;: 252704198, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Abigail&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.cuevas.com/hard.png&#x27;, &#x27;http://www.cuevas.com/finish.bmp&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 243246398, &#x27;name&#x27;: &#x27;nice partner half&#x27;}, {&#x27;id&#x27;: 34454846, &#x27;name&#x27;: &#x27;human part certain&#x27;}, {&#x27;id&#x27;: 286651865, &#x27;name&#x27;: &#x27;throughout help involve&#x27;}, {&#x27;id&#x27;: 198568022, &#x27;name&#x27;: &#x27;necessary consider offer&#x27;}, {&#x27;id&#x27;: 83860622, &#x27;name&#x27;: &#x27;Congress name fight&#x27;}], &#x27;id&#x27;: 581746550, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;James&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.lane-perez.com/type.jpg&#x27;, &#x27;http://www.lane-perez.com/realize.png&#x27;, &#x27;http://www.lane-perez.com/long.bmp&#x27;, &#x27;http://www.lane-perez.com/oil.png&#x27;, &#x27;http://www.lane-perez.com/anything.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 674529894, &#x27;name&#x27;: &#x27;under far effect&#x27;}, {&#x27;id&#x27;: 497370309, &#x27;name&#x27;: &#x27;black check officer&#x27;}, {&#x27;id&#x27;: 228593045, &#x27;name&#x27;: &#x27;wonder hope TV&#x27;}, {&#x27;id&#x27;: 3330221, &#x27;name&#x27;: &#x27;sell common area&#x27;}, {&#x27;id&#x27;: 914981749, &#x27;name&#x27;: &#x27;plan his PM&#x27;}], &#x27;id&#x27;: 640630300, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Stephanie&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.tate.com/member.bmp&#x27;, &#x27;https://www.tate.com/join.jpg&#x27;, &#x27;https://www.tate.com/clear.jpg&#x27;, &#x27;https://www.tate.com/increase.bmp&#x27;, &#x27;https://www.tate.com/it.jpg&#x27;, &#x27;https://www.tate.com/while.jpg&#x27;, &#x27;https://www.tate.com/whether.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_get_pet_by_status.py:20 Validating STATUS_CODE is OK
+INFO     root:pets.py:68 Getting all Pets with status {&#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=sold
+INFO     root:test_get_pet_by_status.py:39 Validating STATUS_CODE is OK
+INFO     root:pets.py:68 Getting all Pets with status {&#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=available
+INFO     root:test_get_pet_by_status.py:54 Validating STATUS_CODE is OK
+INFO     root:pets.py:68 Getting all Pets with status {&#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=pending
+INFO     root:test_get_pet_by_status.py:69 Validating STATUS_CODE is OK<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/pets_tests/test_get_pet_by_status.py::test_get_pet_by_invalid_status</td>
+          <td class="col-duration">1.04</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Executing	testcases.pets_tests.test_get_pet_by_status
+INFO:root:Getting all Pets with status {&#x27;status&#x27;: &#x27;invalid_3455746353dfghfgdsf&#x27;}
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=invalid_3455746353dfghfgdsf
+INFO:root:Validating STATUS_CODE is OK
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_get_pet_by_status.py:86 Executing	testcases.pets_tests.test_get_pet_by_status
+INFO     root:pets.py:68 Getting all Pets with status {&#x27;status&#x27;: &#x27;invalid_3455746353dfghfgdsf&#x27;}
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/findByStatus?status=invalid_3455746353dfghfgdsf
+INFO     root:test_get_pet_by_status.py:90 Validating STATUS_CODE is OK<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/pets_tests/test_pet_update.py::test_update_pet</td>
+          <td class="col-duration">6.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 428157921, &#x27;name&#x27;: &#x27;there actually value&#x27;}, {&#x27;id&#x27;: 970795543, &#x27;name&#x27;: &#x27;source soldier class&#x27;}, {&#x27;id&#x27;: 752067747, &#x27;name&#x27;: &#x27;serve fight fact&#x27;}, {&#x27;id&#x27;: 518289924, &#x27;name&#x27;: &#x27;true close song&#x27;}, {&#x27;id&#x27;: 390496257, &#x27;name&#x27;: &#x27;but into follow&#x27;}], &#x27;id&#x27;: 672587595, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Brent&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://rodriguez.biz/blue.png&#x27;, &#x27;http://rodriguez.biz/place.png&#x27;, &#x27;http://rodriguez.biz/nothing.png&#x27;, &#x27;http://rodriguez.biz/rather.bmp&#x27;, &#x27;http://rodriguez.biz/exactly.jpg&#x27;, &#x27;http://rodriguez.biz/with.bmp&#x27;, &#x27;http://rodriguez.biz/middle.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Updating Pet details for pet id 672587595
+INFO:root:PUT	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 771420463, &#x27;name&#x27;: &#x27;other particular hit&#x27;}, {&#x27;id&#x27;: 160141739, &#x27;name&#x27;: &#x27;those yet then&#x27;}, {&#x27;id&#x27;: 477806681, &#x27;name&#x27;: &#x27;line natural space&#x27;}, {&#x27;id&#x27;: 886831166, &#x27;name&#x27;: &#x27;section road even&#x27;}, {&#x27;id&#x27;: 716338906, &#x27;name&#x27;: &#x27;owner drive compare&#x27;}], &#x27;id&#x27;: 672587595, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Daniel&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://terry.com/option.jpg&#x27;, &#x27;http://terry.com/ago.bmp&#x27;, &#x27;http://terry.com/look.png&#x27;, &#x27;http://terry.com/miss.bmp&#x27;, &#x27;http://terry.com/us.bmp&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for update_pet()
+INFO:root:Validating Response BODY for update_pet()
+INFO:root:Pet with id 672587595 updated successfully.
+INFO:root:Getting Pets details for id 672587595
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/672587595
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(672587595)
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Pet with id 672587595 was updated and validated successfully.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 428157921, &#x27;name&#x27;: &#x27;there actually value&#x27;}, {&#x27;id&#x27;: 970795543, &#x27;name&#x27;: &#x27;source soldier class&#x27;}, {&#x27;id&#x27;: 752067747, &#x27;name&#x27;: &#x27;serve fight fact&#x27;}, {&#x27;id&#x27;: 518289924, &#x27;name&#x27;: &#x27;true close song&#x27;}, {&#x27;id&#x27;: 390496257, &#x27;name&#x27;: &#x27;but into follow&#x27;}], &#x27;id&#x27;: 672587595, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Brent&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://rodriguez.biz/blue.png&#x27;, &#x27;http://rodriguez.biz/place.png&#x27;, &#x27;http://rodriguez.biz/nothing.png&#x27;, &#x27;http://rodriguez.biz/rather.bmp&#x27;, &#x27;http://rodriguez.biz/exactly.jpg&#x27;, &#x27;http://rodriguez.biz/with.bmp&#x27;, &#x27;http://rodriguez.biz/middle.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pet_update.py:17 Validating STATUS_CODE is OK
+INFO     root:pets.py:57 Updating Pet details for pet id 672587595
+INFO     root:rest_client.py:77 PUT	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:81 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 771420463, &#x27;name&#x27;: &#x27;other particular hit&#x27;}, {&#x27;id&#x27;: 160141739, &#x27;name&#x27;: &#x27;those yet then&#x27;}, {&#x27;id&#x27;: 477806681, &#x27;name&#x27;: &#x27;line natural space&#x27;}, {&#x27;id&#x27;: 886831166, &#x27;name&#x27;: &#x27;section road even&#x27;}, {&#x27;id&#x27;: 716338906, &#x27;name&#x27;: &#x27;owner drive compare&#x27;}], &#x27;id&#x27;: 672587595, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Daniel&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://terry.com/option.jpg&#x27;, &#x27;http://terry.com/ago.bmp&#x27;, &#x27;http://terry.com/look.png&#x27;, &#x27;http://terry.com/miss.bmp&#x27;, &#x27;http://terry.com/us.bmp&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_pet_update.py:25 Validating STATUS_CODE is OK
+INFO     root:test_pet_update.py:27 Validating Response SCHEMA for update_pet()
+INFO     root:test_pet_update.py:29 Validating Response BODY for update_pet()
+INFO     root:test_pet_update.py:32 Pet with id 672587595 updated successfully.
+INFO     root:pets.py:47 Getting Pets details for id 672587595
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/672587595
+INFO     root:test_pet_update.py:35 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(672587595)
+INFO     root:test_pet_update.py:36 Validating STATUS_CODE is OK
+INFO     root:test_pet_update.py:39 Validating Response SCHEMA
+INFO     root:test_pet_update.py:42 Validating Response BODY
+INFO     root:test_pet_update.py:46 Pet with id 672587595 was updated and validated successfully.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/pets_tests/test_pets_creation.py::test_create_single_pet</td>
+          <td class="col-duration">4.57</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 678296251, &#x27;name&#x27;: &#x27;ago TV hear&#x27;}, {&#x27;id&#x27;: 918722344, &#x27;name&#x27;: &#x27;suffer actually mind&#x27;}, {&#x27;id&#x27;: 577244098, &#x27;name&#x27;: &#x27;save story trial&#x27;}, {&#x27;id&#x27;: 668885367, &#x27;name&#x27;: &#x27;meeting election Mrs&#x27;}, {&#x27;id&#x27;: 52836819, &#x27;name&#x27;: &#x27;themselves including reason&#x27;}], &#x27;id&#x27;: 634532244, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Jeffrey&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://young.com/himself.jpg&#x27;, &#x27;http://young.com/cost.png&#x27;, &#x27;http://young.com/direction.jpg&#x27;, &#x27;http://young.com/employee.bmp&#x27;, &#x27;http://young.com/table.bmp&#x27;, &#x27;http://young.com/Democrat.png&#x27;, &#x27;http://young.com/exist.bmp&#x27;, &#x27;http://young.com/why.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for 634532244
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for create_pet()
+INFO:root:Validating Response BODY for create_pet()
+INFO:root:Getting Pets details for id 634532244
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/634532244
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(634532244)
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for get_pet()
+INFO:root:Validating Response BODY for get_pet()
+INFO:root:Pet with id 634532244 created successfully.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 678296251, &#x27;name&#x27;: &#x27;ago TV hear&#x27;}, {&#x27;id&#x27;: 918722344, &#x27;name&#x27;: &#x27;suffer actually mind&#x27;}, {&#x27;id&#x27;: 577244098, &#x27;name&#x27;: &#x27;save story trial&#x27;}, {&#x27;id&#x27;: 668885367, &#x27;name&#x27;: &#x27;meeting election Mrs&#x27;}, {&#x27;id&#x27;: 52836819, &#x27;name&#x27;: &#x27;themselves including reason&#x27;}], &#x27;id&#x27;: 634532244, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Jeffrey&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://young.com/himself.jpg&#x27;, &#x27;http://young.com/cost.png&#x27;, &#x27;http://young.com/direction.jpg&#x27;, &#x27;http://young.com/employee.bmp&#x27;, &#x27;http://young.com/table.bmp&#x27;, &#x27;http://young.com/Democrat.png&#x27;, &#x27;http://young.com/exist.bmp&#x27;, &#x27;http://young.com/why.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pets_creation.py:17 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for 634532244
+INFO     root:test_pets_creation.py:18 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:21 Validating Response SCHEMA for create_pet()
+INFO     root:test_pets_creation.py:24 Validating Response BODY for create_pet()
+INFO     root:pets.py:47 Getting Pets details for id 634532244
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/634532244
+INFO     root:test_pets_creation.py:28 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(634532244)
+INFO     root:test_pets_creation.py:29 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:32 Validating Response SCHEMA for get_pet()
+INFO     root:test_pets_creation.py:35 Validating Response BODY for get_pet()
+INFO     root:test_pets_creation.py:37 Pet with id 634532244 created successfully.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/pets_tests/test_pets_creation.py::test_create_single_pet_using_put</td>
+          <td class="col-duration">4.12</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Getting Pets details for id 427898222
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/427898222
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(427898222)
+INFO:root:Validating STATUS_CODE is NOT_FOUND
+INFO:root:Validating Response SCHEMA for get_pet(427898222)
+INFO:root:Validating Response BODY for get_pet(427898222)
+INFO:root:Pet with id 427898222 is not found.
+INFO:root:Updating Pet details for pet id 427898222
+INFO:root:PUT	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 608898550, &#x27;name&#x27;: &#x27;design apply chance&#x27;}, {&#x27;id&#x27;: 581848017, &#x27;name&#x27;: &#x27;fish just certainly&#x27;}, {&#x27;id&#x27;: 478928126, &#x27;name&#x27;: &#x27;bad series lawyer&#x27;}, {&#x27;id&#x27;: 157124162, &#x27;name&#x27;: &#x27;carry it drop&#x27;}, {&#x27;id&#x27;: 86444943, &#x27;name&#x27;: &#x27;education foot window&#x27;}], &#x27;id&#x27;: 427898222, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;David&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://gardner.com/spend.png&#x27;, &#x27;http://gardner.com/scene.jpg&#x27;, &#x27;http://gardner.com/employee.jpg&#x27;, &#x27;http://gardner.com/feeling.png&#x27;, &#x27;http://gardner.com/where.bmp&#x27;, &#x27;http://gardner.com/head.bmp&#x27;, &#x27;http://gardner.com/catch.bmp&#x27;, &#x27;http://gardner.com/teacher.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for update_pet()
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for update_pet()
+INFO:root:Validating Response BODY for get_pet()
+INFO:root:Getting Pets details for id 427898222
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/427898222
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(427898222)
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for get_pet()
+INFO:root:Validating Response BODY for get_pet()
+INFO:root:Pet with id 427898222 created successfully.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:pets.py:47 Getting Pets details for id 427898222
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/427898222
+INFO     root:test_pets_creation.py:49 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(427898222)
+INFO     root:test_pets_creation.py:50 Validating STATUS_CODE is NOT_FOUND
+INFO     root:test_pets_creation.py:52 Validating Response SCHEMA for get_pet(427898222)
+INFO     root:test_pets_creation.py:54 Validating Response BODY for get_pet(427898222)
+INFO     root:test_pets_creation.py:56 Pet with id 427898222 is not found.
+INFO     root:pets.py:57 Updating Pet details for pet id 427898222
+INFO     root:rest_client.py:77 PUT	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:81 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 608898550, &#x27;name&#x27;: &#x27;design apply chance&#x27;}, {&#x27;id&#x27;: 581848017, &#x27;name&#x27;: &#x27;fish just certainly&#x27;}, {&#x27;id&#x27;: 478928126, &#x27;name&#x27;: &#x27;bad series lawyer&#x27;}, {&#x27;id&#x27;: 157124162, &#x27;name&#x27;: &#x27;carry it drop&#x27;}, {&#x27;id&#x27;: 86444943, &#x27;name&#x27;: &#x27;education foot window&#x27;}], &#x27;id&#x27;: 427898222, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;David&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://gardner.com/spend.png&#x27;, &#x27;http://gardner.com/scene.jpg&#x27;, &#x27;http://gardner.com/employee.jpg&#x27;, &#x27;http://gardner.com/feeling.png&#x27;, &#x27;http://gardner.com/where.bmp&#x27;, &#x27;http://gardner.com/head.bmp&#x27;, &#x27;http://gardner.com/catch.bmp&#x27;, &#x27;http://gardner.com/teacher.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pets_creation.py:60 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for update_pet()
+INFO     root:test_pets_creation.py:62 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:64 Validating Response SCHEMA for update_pet()
+INFO     root:test_pets_creation.py:66 Validating Response BODY for get_pet()
+INFO     root:pets.py:47 Getting Pets details for id 427898222
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/427898222
+INFO     root:test_pets_creation.py:71 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(427898222)
+INFO     root:test_pets_creation.py:72 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:74 Validating Response SCHEMA for get_pet()
+INFO     root:test_pets_creation.py:76 Validating Response BODY for get_pet()
+INFO     root:test_pets_creation.py:79 Pet with id 427898222 created successfully.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/pets_tests/test_pets_creation.py::test_create_multiple_pets</td>
+          <td class="col-duration">31.84</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 649653577, &#x27;name&#x27;: &#x27;fine north behind&#x27;}, {&#x27;id&#x27;: 125534141, &#x27;name&#x27;: &#x27;sister table control&#x27;}, {&#x27;id&#x27;: 368539386, &#x27;name&#x27;: &#x27;allow new situation&#x27;}, {&#x27;id&#x27;: 759385474, &#x27;name&#x27;: &#x27;staff enter blue&#x27;}, {&#x27;id&#x27;: 394596825, &#x27;name&#x27;: &#x27;idea forget player&#x27;}], &#x27;id&#x27;: 782223683, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Benjamin&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://day-jimenez.com/stop.bmp&#x27;, &#x27;http://day-jimenez.com/number.bmp&#x27;, &#x27;http://day-jimenez.com/tell.jpg&#x27;, &#x27;http://day-jimenez.com/let.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 788488349, &#x27;name&#x27;: &#x27;return finally himself&#x27;}, {&#x27;id&#x27;: 32238775, &#x27;name&#x27;: &#x27;resource sure simply&#x27;}, {&#x27;id&#x27;: 295732515, &#x27;name&#x27;: &#x27;nature program show&#x27;}, {&#x27;id&#x27;: 753777179, &#x27;name&#x27;: &#x27;beautiful what right&#x27;}, {&#x27;id&#x27;: 589421747, &#x27;name&#x27;: &#x27;born use charge&#x27;}], &#x27;id&#x27;: 397646514, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Earl&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://craig-lloyd.com/speech.jpg&#x27;, &#x27;http://craig-lloyd.com/show.jpg&#x27;, &#x27;http://craig-lloyd.com/growth.bmp&#x27;, &#x27;http://craig-lloyd.com/wear.png&#x27;, &#x27;http://craig-lloyd.com/indicate.png&#x27;, &#x27;http://craig-lloyd.com/recognize.bmp&#x27;, &#x27;http://craig-lloyd.com/husband.png&#x27;, &#x27;http://craig-lloyd.com/institution.jpg&#x27;, &#x27;http://craig-lloyd.com/lawyer.jpg&#x27;, &#x27;http://craig-lloyd.com/debate.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 516304999, &#x27;name&#x27;: &#x27;wide into investment&#x27;}, {&#x27;id&#x27;: 844739744, &#x27;name&#x27;: &#x27;drop identify that&#x27;}, {&#x27;id&#x27;: 819227107, &#x27;name&#x27;: &#x27;onto box speech&#x27;}, {&#x27;id&#x27;: 970451146, &#x27;name&#x27;: &#x27;meeting treatment machine&#x27;}, {&#x27;id&#x27;: 793825702, &#x27;name&#x27;: &#x27;discuss happen begin&#x27;}], &#x27;id&#x27;: 496678675, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Priscilla&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://wood.com/blue.png&#x27;, &#x27;https://wood.com/forward.jpg&#x27;, &#x27;https://wood.com/attention.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 885190887, &#x27;name&#x27;: &#x27;compare production social&#x27;}, {&#x27;id&#x27;: 242697859, &#x27;name&#x27;: &#x27;do conference picture&#x27;}, {&#x27;id&#x27;: 871072256, &#x27;name&#x27;: &#x27;seem share here&#x27;}, {&#x27;id&#x27;: 433610444, &#x27;name&#x27;: &#x27;large several candidate&#x27;}, {&#x27;id&#x27;: 444789698, &#x27;name&#x27;: &#x27;beautiful parent gun&#x27;}], &#x27;id&#x27;: 46367216, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Brian&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.holmes.info/eat.png&#x27;, &#x27;https://www.holmes.info/lose.png&#x27;, &#x27;https://www.holmes.info/science.png&#x27;, &#x27;https://www.holmes.info/benefit.jpg&#x27;, &#x27;https://www.holmes.info/type.png&#x27;, &#x27;https://www.holmes.info/they.png&#x27;, &#x27;https://www.holmes.info/moment.jpg&#x27;, &#x27;https://www.holmes.info/memory.bmp&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 610929274, &#x27;name&#x27;: &#x27;account natural risk&#x27;}, {&#x27;id&#x27;: 588902132, &#x27;name&#x27;: &#x27;newspaper would I&#x27;}, {&#x27;id&#x27;: 577776634, &#x27;name&#x27;: &#x27;wife certainly may&#x27;}, {&#x27;id&#x27;: 808698201, &#x27;name&#x27;: &#x27;out opportunity window&#x27;}, {&#x27;id&#x27;: 787453816, &#x27;name&#x27;: &#x27;against really rather&#x27;}], &#x27;id&#x27;: 388625824, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Stephen&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://reynolds.com/happen.jpg&#x27;, &#x27;http://reynolds.com/energy.png&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 270402737, &#x27;name&#x27;: &#x27;quite language rock&#x27;}, {&#x27;id&#x27;: 174630422, &#x27;name&#x27;: &#x27;guess through require&#x27;}, {&#x27;id&#x27;: 416434182, &#x27;name&#x27;: &#x27;court assume across&#x27;}, {&#x27;id&#x27;: 344402763, &#x27;name&#x27;: &#x27;doctor air again&#x27;}, {&#x27;id&#x27;: 337348313, &#x27;name&#x27;: &#x27;maintain itself somebody&#x27;}], &#x27;id&#x27;: 743821065, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Diane&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.martinez.biz/morning.bmp&#x27;, &#x27;http://www.martinez.biz/dark.png&#x27;, &#x27;http://www.martinez.biz/until.jpg&#x27;, &#x27;http://www.martinez.biz/visit.png&#x27;, &#x27;http://www.martinez.biz/future.bmp&#x27;, &#x27;http://www.martinez.biz/pull.png&#x27;, &#x27;http://www.martinez.biz/kind.png&#x27;, &#x27;http://www.martinez.biz/modern.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 427538146, &#x27;name&#x27;: &#x27;message open TV&#x27;}, {&#x27;id&#x27;: 948067851, &#x27;name&#x27;: &#x27;may production audience&#x27;}, {&#x27;id&#x27;: 820342518, &#x27;name&#x27;: &#x27;late artist structure&#x27;}, {&#x27;id&#x27;: 717783030, &#x27;name&#x27;: &#x27;want campaign arm&#x27;}, {&#x27;id&#x27;: 759796530, &#x27;name&#x27;: &#x27;place bill serious&#x27;}], &#x27;id&#x27;: 357632192, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Rhonda&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.phillips-walker.com/pass.bmp&#x27;, &#x27;https://www.phillips-walker.com/past.png&#x27;, &#x27;https://www.phillips-walker.com/tree.png&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 385527184, &#x27;name&#x27;: &#x27;provide institution car&#x27;}, {&#x27;id&#x27;: 514823856, &#x27;name&#x27;: &#x27;also meet address&#x27;}, {&#x27;id&#x27;: 696857721, &#x27;name&#x27;: &#x27;thank goal rock&#x27;}, {&#x27;id&#x27;: 954081078, &#x27;name&#x27;: &#x27;away go still&#x27;}, {&#x27;id&#x27;: 29568563, &#x27;name&#x27;: &#x27;director international military&#x27;}], &#x27;id&#x27;: 614252836, &#x27;category&#x27;: {&#x27;id&#x27;: 2, &#x27;name&#x27;: &#x27;Cat&#x27;}, &#x27;name&#x27;: &#x27;Bianca&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.smith.info/design.jpg&#x27;, &#x27;https://www.smith.info/thought.bmp&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 740424960, &#x27;name&#x27;: &#x27;race great language&#x27;}, {&#x27;id&#x27;: 476632614, &#x27;name&#x27;: &#x27;call finish role&#x27;}, {&#x27;id&#x27;: 323648924, &#x27;name&#x27;: &#x27;himself wind explain&#x27;}, {&#x27;id&#x27;: 159246226, &#x27;name&#x27;: &#x27;part policy learn&#x27;}, {&#x27;id&#x27;: 480444622, &#x27;name&#x27;: &#x27;happy bed message&#x27;}], &#x27;id&#x27;: 801130743, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Joan&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.sims.org/for.png&#x27;, &#x27;http://www.sims.org/opportunity.jpg&#x27;, &#x27;http://www.sims.org/these.bmp&#x27;, &#x27;http://www.sims.org/myself.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Creating Pet
+INFO:root:POST	::: https://petstore.swagger.io/v2/pet
+INFO:root:BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 783649102, &#x27;name&#x27;: &#x27;fill low dream&#x27;}, {&#x27;id&#x27;: 279617101, &#x27;name&#x27;: &#x27;east practice hope&#x27;}, {&#x27;id&#x27;: 507136370, &#x27;name&#x27;: &#x27;base bag apply&#x27;}, {&#x27;id&#x27;: 553781913, &#x27;name&#x27;: &#x27;ready movement everybody&#x27;}, {&#x27;id&#x27;: 887020192, &#x27;name&#x27;: &#x27;collection couple budget&#x27;}], &#x27;id&#x27;: 998648528, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Jenny&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://rodriguez.biz/million.bmp&#x27;, &#x27;https://rodriguez.biz/life.bmp&#x27;, &#x27;https://rodriguez.biz/spring.bmp&#x27;, &#x27;https://rodriguez.biz/player.jpg&#x27;, &#x27;https://rodriguez.biz/smile.png&#x27;, &#x27;https://rodriguez.biz/fall.png&#x27;, &#x27;https://rodriguez.biz/arm.bmp&#x27;, &#x27;https://rodriguez.biz/professional.png&#x27;, &#x27;https://rodriguez.biz/explain.jpg&#x27;, &#x27;https://rodriguez.biz/role.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(782223683)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(397646514)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(496678675)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(46367216)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(388625824)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(743821065)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(357632192)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(614252836)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(801130743)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating SCHEMA and RESPONSE BODY for create_pet(998648528)
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY 
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(782223683)
+INFO:root:Getting Pets details for id 782223683
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/782223683
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(397646514)
+INFO:root:Getting Pets details for id 397646514
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/397646514
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(496678675)
+INFO:root:Getting Pets details for id 496678675
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/496678675
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(46367216)
+INFO:root:Getting Pets details for id 46367216
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/46367216
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(388625824)
+INFO:root:Getting Pets details for id 388625824
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/388625824
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(743821065)
+INFO:root:Getting Pets details for id 743821065
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/743821065
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(357632192)
+INFO:root:Getting Pets details for id 357632192
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/357632192
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(614252836)
+INFO:root:Getting Pets details for id 614252836
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/614252836
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(801130743)
+INFO:root:Getting Pets details for id 801130743
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/801130743
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(998648528)
+INFO:root:Getting Pets details for id 998648528
+INFO:root:GET	::: https://petstore.swagger.io/v2/pet/998648528
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:All Pets are created successfully.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 649653577, &#x27;name&#x27;: &#x27;fine north behind&#x27;}, {&#x27;id&#x27;: 125534141, &#x27;name&#x27;: &#x27;sister table control&#x27;}, {&#x27;id&#x27;: 368539386, &#x27;name&#x27;: &#x27;allow new situation&#x27;}, {&#x27;id&#x27;: 759385474, &#x27;name&#x27;: &#x27;staff enter blue&#x27;}, {&#x27;id&#x27;: 394596825, &#x27;name&#x27;: &#x27;idea forget player&#x27;}], &#x27;id&#x27;: 782223683, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Benjamin&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://day-jimenez.com/stop.bmp&#x27;, &#x27;http://day-jimenez.com/number.bmp&#x27;, &#x27;http://day-jimenez.com/tell.jpg&#x27;, &#x27;http://day-jimenez.com/let.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 788488349, &#x27;name&#x27;: &#x27;return finally himself&#x27;}, {&#x27;id&#x27;: 32238775, &#x27;name&#x27;: &#x27;resource sure simply&#x27;}, {&#x27;id&#x27;: 295732515, &#x27;name&#x27;: &#x27;nature program show&#x27;}, {&#x27;id&#x27;: 753777179, &#x27;name&#x27;: &#x27;beautiful what right&#x27;}, {&#x27;id&#x27;: 589421747, &#x27;name&#x27;: &#x27;born use charge&#x27;}], &#x27;id&#x27;: 397646514, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Earl&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://craig-lloyd.com/speech.jpg&#x27;, &#x27;http://craig-lloyd.com/show.jpg&#x27;, &#x27;http://craig-lloyd.com/growth.bmp&#x27;, &#x27;http://craig-lloyd.com/wear.png&#x27;, &#x27;http://craig-lloyd.com/indicate.png&#x27;, &#x27;http://craig-lloyd.com/recognize.bmp&#x27;, &#x27;http://craig-lloyd.com/husband.png&#x27;, &#x27;http://craig-lloyd.com/institution.jpg&#x27;, &#x27;http://craig-lloyd.com/lawyer.jpg&#x27;, &#x27;http://craig-lloyd.com/debate.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 516304999, &#x27;name&#x27;: &#x27;wide into investment&#x27;}, {&#x27;id&#x27;: 844739744, &#x27;name&#x27;: &#x27;drop identify that&#x27;}, {&#x27;id&#x27;: 819227107, &#x27;name&#x27;: &#x27;onto box speech&#x27;}, {&#x27;id&#x27;: 970451146, &#x27;name&#x27;: &#x27;meeting treatment machine&#x27;}, {&#x27;id&#x27;: 793825702, &#x27;name&#x27;: &#x27;discuss happen begin&#x27;}], &#x27;id&#x27;: 496678675, &#x27;category&#x27;: {&#x27;id&#x27;: 3, &#x27;name&#x27;: &#x27;Fish&#x27;}, &#x27;name&#x27;: &#x27;Priscilla&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://wood.com/blue.png&#x27;, &#x27;https://wood.com/forward.jpg&#x27;, &#x27;https://wood.com/attention.jpg&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 885190887, &#x27;name&#x27;: &#x27;compare production social&#x27;}, {&#x27;id&#x27;: 242697859, &#x27;name&#x27;: &#x27;do conference picture&#x27;}, {&#x27;id&#x27;: 871072256, &#x27;name&#x27;: &#x27;seem share here&#x27;}, {&#x27;id&#x27;: 433610444, &#x27;name&#x27;: &#x27;large several candidate&#x27;}, {&#x27;id&#x27;: 444789698, &#x27;name&#x27;: &#x27;beautiful parent gun&#x27;}], &#x27;id&#x27;: 46367216, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Brian&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.holmes.info/eat.png&#x27;, &#x27;https://www.holmes.info/lose.png&#x27;, &#x27;https://www.holmes.info/science.png&#x27;, &#x27;https://www.holmes.info/benefit.jpg&#x27;, &#x27;https://www.holmes.info/type.png&#x27;, &#x27;https://www.holmes.info/they.png&#x27;, &#x27;https://www.holmes.info/moment.jpg&#x27;, &#x27;https://www.holmes.info/memory.bmp&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 610929274, &#x27;name&#x27;: &#x27;account natural risk&#x27;}, {&#x27;id&#x27;: 588902132, &#x27;name&#x27;: &#x27;newspaper would I&#x27;}, {&#x27;id&#x27;: 577776634, &#x27;name&#x27;: &#x27;wife certainly may&#x27;}, {&#x27;id&#x27;: 808698201, &#x27;name&#x27;: &#x27;out opportunity window&#x27;}, {&#x27;id&#x27;: 787453816, &#x27;name&#x27;: &#x27;against really rather&#x27;}], &#x27;id&#x27;: 388625824, &#x27;category&#x27;: {&#x27;id&#x27;: 5, &#x27;name&#x27;: &#x27;Rabbit&#x27;}, &#x27;name&#x27;: &#x27;Stephen&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://reynolds.com/happen.jpg&#x27;, &#x27;http://reynolds.com/energy.png&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 270402737, &#x27;name&#x27;: &#x27;quite language rock&#x27;}, {&#x27;id&#x27;: 174630422, &#x27;name&#x27;: &#x27;guess through require&#x27;}, {&#x27;id&#x27;: 416434182, &#x27;name&#x27;: &#x27;court assume across&#x27;}, {&#x27;id&#x27;: 344402763, &#x27;name&#x27;: &#x27;doctor air again&#x27;}, {&#x27;id&#x27;: 337348313, &#x27;name&#x27;: &#x27;maintain itself somebody&#x27;}], &#x27;id&#x27;: 743821065, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Diane&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.martinez.biz/morning.bmp&#x27;, &#x27;http://www.martinez.biz/dark.png&#x27;, &#x27;http://www.martinez.biz/until.jpg&#x27;, &#x27;http://www.martinez.biz/visit.png&#x27;, &#x27;http://www.martinez.biz/future.bmp&#x27;, &#x27;http://www.martinez.biz/pull.png&#x27;, &#x27;http://www.martinez.biz/kind.png&#x27;, &#x27;http://www.martinez.biz/modern.bmp&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 427538146, &#x27;name&#x27;: &#x27;message open TV&#x27;}, {&#x27;id&#x27;: 948067851, &#x27;name&#x27;: &#x27;may production audience&#x27;}, {&#x27;id&#x27;: 820342518, &#x27;name&#x27;: &#x27;late artist structure&#x27;}, {&#x27;id&#x27;: 717783030, &#x27;name&#x27;: &#x27;want campaign arm&#x27;}, {&#x27;id&#x27;: 759796530, &#x27;name&#x27;: &#x27;place bill serious&#x27;}], &#x27;id&#x27;: 357632192, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Rhonda&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.phillips-walker.com/pass.bmp&#x27;, &#x27;https://www.phillips-walker.com/past.png&#x27;, &#x27;https://www.phillips-walker.com/tree.png&#x27;], &#x27;status&#x27;: &#x27;sold&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 385527184, &#x27;name&#x27;: &#x27;provide institution car&#x27;}, {&#x27;id&#x27;: 514823856, &#x27;name&#x27;: &#x27;also meet address&#x27;}, {&#x27;id&#x27;: 696857721, &#x27;name&#x27;: &#x27;thank goal rock&#x27;}, {&#x27;id&#x27;: 954081078, &#x27;name&#x27;: &#x27;away go still&#x27;}, {&#x27;id&#x27;: 29568563, &#x27;name&#x27;: &#x27;director international military&#x27;}], &#x27;id&#x27;: 614252836, &#x27;category&#x27;: {&#x27;id&#x27;: 2, &#x27;name&#x27;: &#x27;Cat&#x27;}, &#x27;name&#x27;: &#x27;Bianca&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://www.smith.info/design.jpg&#x27;, &#x27;https://www.smith.info/thought.bmp&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 740424960, &#x27;name&#x27;: &#x27;race great language&#x27;}, {&#x27;id&#x27;: 476632614, &#x27;name&#x27;: &#x27;call finish role&#x27;}, {&#x27;id&#x27;: 323648924, &#x27;name&#x27;: &#x27;himself wind explain&#x27;}, {&#x27;id&#x27;: 159246226, &#x27;name&#x27;: &#x27;part policy learn&#x27;}, {&#x27;id&#x27;: 480444622, &#x27;name&#x27;: &#x27;happy bed message&#x27;}], &#x27;id&#x27;: 801130743, &#x27;category&#x27;: {&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;Dog&#x27;}, &#x27;name&#x27;: &#x27;Joan&#x27;, &#x27;photoUrls&#x27;: [&#x27;http://www.sims.org/for.png&#x27;, &#x27;http://www.sims.org/opportunity.jpg&#x27;, &#x27;http://www.sims.org/these.bmp&#x27;, &#x27;http://www.sims.org/myself.jpg&#x27;], &#x27;status&#x27;: &#x27;available&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:pets.py:24 Creating Pet
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/pet
+INFO     root:rest_client.py:91 BODY	::: {&#x27;tags&#x27;: [{&#x27;id&#x27;: 783649102, &#x27;name&#x27;: &#x27;fill low dream&#x27;}, {&#x27;id&#x27;: 279617101, &#x27;name&#x27;: &#x27;east practice hope&#x27;}, {&#x27;id&#x27;: 507136370, &#x27;name&#x27;: &#x27;base bag apply&#x27;}, {&#x27;id&#x27;: 553781913, &#x27;name&#x27;: &#x27;ready movement everybody&#x27;}, {&#x27;id&#x27;: 887020192, &#x27;name&#x27;: &#x27;collection couple budget&#x27;}], &#x27;id&#x27;: 998648528, &#x27;category&#x27;: {&#x27;id&#x27;: 4, &#x27;name&#x27;: &#x27;Mice&#x27;}, &#x27;name&#x27;: &#x27;Jenny&#x27;, &#x27;photoUrls&#x27;: [&#x27;https://rodriguez.biz/million.bmp&#x27;, &#x27;https://rodriguez.biz/life.bmp&#x27;, &#x27;https://rodriguez.biz/spring.bmp&#x27;, &#x27;https://rodriguez.biz/player.jpg&#x27;, &#x27;https://rodriguez.biz/smile.png&#x27;, &#x27;https://rodriguez.biz/fall.png&#x27;, &#x27;https://rodriguez.biz/arm.bmp&#x27;, &#x27;https://rodriguez.biz/professional.png&#x27;, &#x27;https://rodriguez.biz/explain.jpg&#x27;, &#x27;https://rodriguez.biz/role.jpg&#x27;], &#x27;status&#x27;: &#x27;pending&#x27;}
+INFO     root:test_pets_creation.py:91 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(782223683)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(397646514)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(496678675)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(46367216)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(388625824)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(743821065)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(357632192)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(614252836)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(801130743)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:97 Validating SCHEMA and RESPONSE BODY for create_pet(998648528)
+INFO     root:test_pets_creation.py:98 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:100 Validating Response BODY 
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(782223683)
+INFO     root:pets.py:47 Getting Pets details for id 782223683
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/782223683
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(397646514)
+INFO     root:pets.py:47 Getting Pets details for id 397646514
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/397646514
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(496678675)
+INFO     root:pets.py:47 Getting Pets details for id 496678675
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/496678675
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(46367216)
+INFO     root:pets.py:47 Getting Pets details for id 46367216
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/46367216
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(388625824)
+INFO     root:pets.py:47 Getting Pets details for id 388625824
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/388625824
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(743821065)
+INFO     root:pets.py:47 Getting Pets details for id 743821065
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/743821065
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(357632192)
+INFO     root:pets.py:47 Getting Pets details for id 357632192
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/357632192
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(614252836)
+INFO     root:pets.py:47 Getting Pets details for id 614252836
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/614252836
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(801130743)
+INFO     root:pets.py:47 Getting Pets details for id 801130743
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/801130743
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:105 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_pet(998648528)
+INFO     root:pets.py:47 Getting Pets details for id 998648528
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/pet/998648528
+INFO     root:test_pets_creation.py:107 Validating STATUS_CODE is OK
+INFO     root:test_pets_creation.py:109 Validating Response SCHEMA
+INFO     root:test_pets_creation.py:111 Validating Response BODY
+INFO     root:test_pets_creation.py:114 All Pets are created successfully.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/users_tests/test_user.py::test_create_user</td>
+          <td class="col-duration">3.28</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating User
+INFO:root:POST	::: https://petstore.swagger.io/v2/user
+INFO:root:BODY	::: {&#x27;id&#x27;: 592875343, &#x27;username&#x27;: &#x27;Anthony_138399634993393579&#x27;, &#x27;firstName&#x27;: &#x27;Matthew&#x27;, &#x27;lastName&#x27;: &#x27;Christian&#x27;, &#x27;email&#x27;: &#x27;amanda.larson@trevino.com&#x27;, &#x27;password&#x27;: &#x27;NK5KbK$7M#&#x27;, &#x27;phone&#x27;: &#x27;+919018327728&#x27;, &#x27;userStatus&#x27;: 4}
+INFO:root:Getting User details for username Anthony_138399634993393579
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Anthony_138399634993393579
+INFO:root:Getting User details for username Anthony_138399634993393579
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Anthony_138399634993393579
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:24 Creating User
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user
+INFO     root:rest_client.py:91 BODY	::: {&#x27;id&#x27;: 592875343, &#x27;username&#x27;: &#x27;Anthony_138399634993393579&#x27;, &#x27;firstName&#x27;: &#x27;Matthew&#x27;, &#x27;lastName&#x27;: &#x27;Christian&#x27;, &#x27;email&#x27;: &#x27;amanda.larson@trevino.com&#x27;, &#x27;password&#x27;: &#x27;NK5KbK$7M#&#x27;, &#x27;phone&#x27;: &#x27;+919018327728&#x27;, &#x27;userStatus&#x27;: 4}
+INFO     root:users.py:49 Getting User details for username Anthony_138399634993393579
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Anthony_138399634993393579
+INFO     root:users.py:49 Getting User details for username Anthony_138399634993393579
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Anthony_138399634993393579<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/users_tests/test_user.py::test_get_non_existing_user</td>
+          <td class="col-duration">1.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Getting User details for username 138399635026341405
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/138399635026341405
+INFO:root:Validating STATUS_CODE is NOT_FOUND
+INFO:root:Validating Response SCHEMA for get_user()
+INFO:root:Validating Response BODY for update_user()
+INFO:root:User with username 138399635026341405 not found.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:49 Getting User details for username 138399635026341405
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/138399635026341405
+INFO     root:test_user.py:41 Validating STATUS_CODE is NOT_FOUND
+INFO     root:test_user.py:44 Validating Response SCHEMA for get_user()
+INFO     root:test_user.py:47 Validating Response BODY for update_user()
+INFO     root:test_user.py:50 User with username 138399635026341405 not found.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/users_tests/test_user_creation.py::test_create_users_using_array</td>
+          <td class="col-duration">6.45</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating multiple Users
+INFO:root:POST	::: https://petstore.swagger.io/v2/user/createWithArray
+INFO:root:BODY	::: [{&#x27;id&#x27;: 126347042, &#x27;username&#x27;: &#x27;Victoria_138399635037446826&#x27;, &#x27;firstName&#x27;: &#x27;Christopher&#x27;, &#x27;lastName&#x27;: &#x27;Garrett&#x27;, &#x27;email&#x27;: &#x27;darlene.weaver@park.com&#x27;, &#x27;password&#x27;: &#x27;&amp;n!1zQtby3&#x27;, &#x27;phone&#x27;: &#x27;+919115355045&#x27;, &#x27;userStatus&#x27;: 9}, {&#x27;id&#x27;: 655469258, &#x27;username&#x27;: &#x27;Joseph_138399635037456776&#x27;, &#x27;firstName&#x27;: &#x27;Kristopher&#x27;, &#x27;lastName&#x27;: &#x27;Alexander&#x27;, &#x27;email&#x27;: &#x27;laurie.garcia@weaver.biz&#x27;, &#x27;password&#x27;: &#x27;!&amp;4Tmtiq%9&#x27;, &#x27;phone&#x27;: &#x27;+918517018475&#x27;, &#x27;userStatus&#x27;: 1}, {&#x27;id&#x27;: 532214473, &#x27;username&#x27;: &#x27;Jennifer_138399635037466775&#x27;, &#x27;firstName&#x27;: &#x27;Linda&#x27;, &#x27;lastName&#x27;: &#x27;Marquez&#x27;, &#x27;email&#x27;: &#x27;michael.james@alvarado.com&#x27;, &#x27;password&#x27;: &#x27;5wbMc8Cj!j&#x27;, &#x27;phone&#x27;: &#x27;+917282503900&#x27;, &#x27;userStatus&#x27;: 5}, {&#x27;id&#x27;: 175895279, &#x27;username&#x27;: &#x27;Christopher_138399635037476741&#x27;, &#x27;firstName&#x27;: &#x27;Stacey&#x27;, &#x27;lastName&#x27;: &#x27;Boyd&#x27;, &#x27;email&#x27;: &#x27;nathan.francis@powell.com&#x27;, &#x27;password&#x27;: &#x27;otWULcOy^6&#x27;, &#x27;phone&#x27;: &#x27;+917348367069&#x27;, &#x27;userStatus&#x27;: 1}, {&#x27;id&#x27;: 886398635, &#x27;username&#x27;: &#x27;Travis_138399635037486681&#x27;, &#x27;firstName&#x27;: &#x27;Daniel&#x27;, &#x27;lastName&#x27;: &#x27;Greer&#x27;, &#x27;email&#x27;: &#x27;shirley.walker@sanders-stewart.net&#x27;, &#x27;password&#x27;: &#x27;!F39V(dtj3&#x27;, &#x27;phone&#x27;: &#x27;+918194243346&#x27;, &#x27;userStatus&#x27;: 0}]
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for create_users()
+INFO:root:Validating Response BODY for create_users()
+INFO:root:5 users created successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Victoria_138399635037446826
+INFO:root:Getting User details for username Victoria_138399635037446826
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Victoria_138399635037446826
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Victoria_138399635037446826 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Joseph_138399635037456776
+INFO:root:Getting User details for username Joseph_138399635037456776
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Joseph_138399635037456776
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Joseph_138399635037456776 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Jennifer_138399635037466775
+INFO:root:Getting User details for username Jennifer_138399635037466775
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Jennifer_138399635037466775
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Jennifer_138399635037466775 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Christopher_138399635037476741
+INFO:root:Getting User details for username Christopher_138399635037476741
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Christopher_138399635037476741
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Christopher_138399635037476741 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Travis_138399635037486681
+INFO:root:Getting User details for username Travis_138399635037486681
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Travis_138399635037486681
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Travis_138399635037486681 was created and validated successfully.
+INFO:root:All Users created successfully.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:35 Creating multiple Users
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user/createWithArray
+INFO     root:rest_client.py:91 BODY	::: [{&#x27;id&#x27;: 126347042, &#x27;username&#x27;: &#x27;Victoria_138399635037446826&#x27;, &#x27;firstName&#x27;: &#x27;Christopher&#x27;, &#x27;lastName&#x27;: &#x27;Garrett&#x27;, &#x27;email&#x27;: &#x27;darlene.weaver@park.com&#x27;, &#x27;password&#x27;: &#x27;&amp;n!1zQtby3&#x27;, &#x27;phone&#x27;: &#x27;+919115355045&#x27;, &#x27;userStatus&#x27;: 9}, {&#x27;id&#x27;: 655469258, &#x27;username&#x27;: &#x27;Joseph_138399635037456776&#x27;, &#x27;firstName&#x27;: &#x27;Kristopher&#x27;, &#x27;lastName&#x27;: &#x27;Alexander&#x27;, &#x27;email&#x27;: &#x27;laurie.garcia@weaver.biz&#x27;, &#x27;password&#x27;: &#x27;!&amp;4Tmtiq%9&#x27;, &#x27;phone&#x27;: &#x27;+918517018475&#x27;, &#x27;userStatus&#x27;: 1}, {&#x27;id&#x27;: 532214473, &#x27;username&#x27;: &#x27;Jennifer_138399635037466775&#x27;, &#x27;firstName&#x27;: &#x27;Linda&#x27;, &#x27;lastName&#x27;: &#x27;Marquez&#x27;, &#x27;email&#x27;: &#x27;michael.james@alvarado.com&#x27;, &#x27;password&#x27;: &#x27;5wbMc8Cj!j&#x27;, &#x27;phone&#x27;: &#x27;+917282503900&#x27;, &#x27;userStatus&#x27;: 5}, {&#x27;id&#x27;: 175895279, &#x27;username&#x27;: &#x27;Christopher_138399635037476741&#x27;, &#x27;firstName&#x27;: &#x27;Stacey&#x27;, &#x27;lastName&#x27;: &#x27;Boyd&#x27;, &#x27;email&#x27;: &#x27;nathan.francis@powell.com&#x27;, &#x27;password&#x27;: &#x27;otWULcOy^6&#x27;, &#x27;phone&#x27;: &#x27;+917348367069&#x27;, &#x27;userStatus&#x27;: 1}, {&#x27;id&#x27;: 886398635, &#x27;username&#x27;: &#x27;Travis_138399635037486681&#x27;, &#x27;firstName&#x27;: &#x27;Daniel&#x27;, &#x27;lastName&#x27;: &#x27;Greer&#x27;, &#x27;email&#x27;: &#x27;shirley.walker@sanders-stewart.net&#x27;, &#x27;password&#x27;: &#x27;!F39V(dtj3&#x27;, &#x27;phone&#x27;: &#x27;+918194243346&#x27;, &#x27;userStatus&#x27;: 0}]
+INFO     root:test_user_creation.py:22 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:25 Validating Response SCHEMA for create_users()
+INFO     root:test_user_creation.py:28 Validating Response BODY for create_users()
+INFO     root:test_user_creation.py:30 5 users created successfully.
+INFO     root:test_user_creation.py:33 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Victoria_138399635037446826
+INFO     root:users.py:49 Getting User details for username Victoria_138399635037446826
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Victoria_138399635037446826
+INFO     root:test_user_creation.py:36 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:39 Validating Response SCHEMA
+INFO     root:test_user_creation.py:42 Validating Response BODY
+INFO     root:test_user_creation.py:45 Victoria_138399635037446826 was created and validated successfully.
+INFO     root:test_user_creation.py:33 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Joseph_138399635037456776
+INFO     root:users.py:49 Getting User details for username Joseph_138399635037456776
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Joseph_138399635037456776
+INFO     root:test_user_creation.py:36 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:39 Validating Response SCHEMA
+INFO     root:test_user_creation.py:42 Validating Response BODY
+INFO     root:test_user_creation.py:45 Joseph_138399635037456776 was created and validated successfully.
+INFO     root:test_user_creation.py:33 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Jennifer_138399635037466775
+INFO     root:users.py:49 Getting User details for username Jennifer_138399635037466775
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Jennifer_138399635037466775
+INFO     root:test_user_creation.py:36 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:39 Validating Response SCHEMA
+INFO     root:test_user_creation.py:42 Validating Response BODY
+INFO     root:test_user_creation.py:45 Jennifer_138399635037466775 was created and validated successfully.
+INFO     root:test_user_creation.py:33 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Christopher_138399635037476741
+INFO     root:users.py:49 Getting User details for username Christopher_138399635037476741
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Christopher_138399635037476741
+INFO     root:test_user_creation.py:36 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:39 Validating Response SCHEMA
+INFO     root:test_user_creation.py:42 Validating Response BODY
+INFO     root:test_user_creation.py:45 Christopher_138399635037476741 was created and validated successfully.
+INFO     root:test_user_creation.py:33 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Travis_138399635037486681
+INFO     root:users.py:49 Getting User details for username Travis_138399635037486681
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Travis_138399635037486681
+INFO     root:test_user_creation.py:36 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:39 Validating Response SCHEMA
+INFO     root:test_user_creation.py:42 Validating Response BODY
+INFO     root:test_user_creation.py:45 Travis_138399635037486681 was created and validated successfully.
+INFO     root:test_user_creation.py:47 All Users created successfully.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/users_tests/test_user_creation.py::test_create_user_with_alphanumeric_id</td>
+          <td class="col-duration">1.08</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating User
+INFO:root:POST	::: https://petstore.swagger.io/v2/user
+INFO:root:BODY	::: {&#x27;id&#x27;: &#x27;abc123&#x27;, &#x27;username&#x27;: &#x27;Erika_138399635130933907&#x27;, &#x27;firstName&#x27;: &#x27;Ruth&#x27;, &#x27;lastName&#x27;: &#x27;Ward&#x27;, &#x27;email&#x27;: &#x27;sarah.robinson@green.com&#x27;, &#x27;password&#x27;: &#x27;+@C5Xi)vj$&#x27;, &#x27;phone&#x27;: &#x27;+918439642862&#x27;, &#x27;userStatus&#x27;: 3}
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())
+INFO:root:Validating STATUS_CODE is INTERNAL_SERVER_ERROR
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:24 Creating User
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user
+INFO     root:rest_client.py:91 BODY	::: {&#x27;id&#x27;: &#x27;abc123&#x27;, &#x27;username&#x27;: &#x27;Erika_138399635130933907&#x27;, &#x27;firstName&#x27;: &#x27;Ruth&#x27;, &#x27;lastName&#x27;: &#x27;Ward&#x27;, &#x27;email&#x27;: &#x27;sarah.robinson@green.com&#x27;, &#x27;password&#x27;: &#x27;+@C5Xi)vj$&#x27;, &#x27;phone&#x27;: &#x27;+918439642862&#x27;, &#x27;userStatus&#x27;: 3}
+INFO     root:test_user_creation.py:88 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())
+INFO     root:test_user_creation.py:90 Validating STATUS_CODE is INTERNAL_SERVER_ERROR
+INFO     root:test_user_creation.py:93 Validating Response SCHEMA
+INFO     root:test_user_creation.py:96 Validating Response BODY<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/users_tests/test_user_creation.py::test_create_user_with_int_parsable_string_id</td>
+          <td class="col-duration">2.18</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating User
+INFO:root:POST	::: https://petstore.swagger.io/v2/user
+INFO:root:BODY	::: {&#x27;id&#x27;: &#x27;128519855&#x27;, &#x27;username&#x27;: &#x27;John_138399635141781107&#x27;, &#x27;firstName&#x27;: &#x27;Mark&#x27;, &#x27;lastName&#x27;: &#x27;Johnson&#x27;, &#x27;email&#x27;: &#x27;amy.bryant@chan-stevens.com&#x27;, &#x27;password&#x27;: &#x27;bkOAfAbE%3&#x27;, &#x27;phone&#x27;: &#x27;+918729712772&#x27;, &#x27;userStatus&#x27;: 6}
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_user(John_138399635141781107)
+INFO:root:Getting User details for username John_138399635141781107
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/John_138399635141781107
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:24 Creating User
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user
+INFO     root:rest_client.py:91 BODY	::: {&#x27;id&#x27;: &#x27;128519855&#x27;, &#x27;username&#x27;: &#x27;John_138399635141781107&#x27;, &#x27;firstName&#x27;: &#x27;Mark&#x27;, &#x27;lastName&#x27;: &#x27;Johnson&#x27;, &#x27;email&#x27;: &#x27;amy.bryant@chan-stevens.com&#x27;, &#x27;password&#x27;: &#x27;bkOAfAbE%3&#x27;, &#x27;phone&#x27;: &#x27;+918729712772&#x27;, &#x27;userStatus&#x27;: 6}
+INFO     root:test_user_creation.py:115 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())
+INFO     root:test_user_creation.py:117 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:120 Validating Response SCHEMA
+INFO     root:test_user_creation.py:123 Validating Response BODY
+INFO     root:test_user_creation.py:127 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_user(John_138399635141781107)
+INFO     root:users.py:49 Getting User details for username John_138399635141781107
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/John_138399635141781107
+INFO     root:test_user_creation.py:130 Validating STATUS_CODE is OK
+INFO     root:test_user_creation.py:133 Validating Response SCHEMA
+INFO     root:test_user_creation.py:136 Validating Response BODY<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/users_tests/test_user_update.py::test_update_existing_user</td>
+          <td class="col-duration">3.41</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating User
+INFO:root:POST	::: https://petstore.swagger.io/v2/user
+INFO:root:BODY	::: {&#x27;id&#x27;: 924688194, &#x27;username&#x27;: &#x27;Katelyn_138399635163704465&#x27;, &#x27;firstName&#x27;: &#x27;Douglas&#x27;, &#x27;lastName&#x27;: &#x27;Castro&#x27;, &#x27;email&#x27;: &#x27;diana.berger@estrada-williams.org&#x27;, &#x27;password&#x27;: &#x27;RkM7E3HKS+&#x27;, &#x27;phone&#x27;: &#x27;+919617856275&#x27;, &#x27;userStatus&#x27;: 0}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Updating User details for username Katelyn_138399635163704465
+INFO:root:PUT	::: https://petstore.swagger.io/v2/user/Katelyn_138399635163704465
+INFO:root:BODY	::: {&#x27;id&#x27;: 740398534, &#x27;username&#x27;: &#x27;Theresa_138399635176304147&#x27;, &#x27;firstName&#x27;: &#x27;Lindsay&#x27;, &#x27;lastName&#x27;: &#x27;Rojas&#x27;, &#x27;email&#x27;: &#x27;joshua.watkins@olson.com&#x27;, &#x27;password&#x27;: &#x27;@8LC#xL4^X&#x27;, &#x27;phone&#x27;: &#x27;+918447495588&#x27;, &#x27;userStatus&#x27;: 4}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for update_user()
+INFO:root:Validating Response BODY for update_user()
+INFO:root:User with username Katelyn_138399635163704465 updated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_user(Theresa_138399635176304147)
+INFO:root:Getting User details for username Theresa_138399635176304147
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Theresa_138399635176304147
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:User with username Katelyn_138399635163704465 was updated and validated successfully.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:24 Creating User
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user
+INFO     root:rest_client.py:91 BODY	::: {&#x27;id&#x27;: 924688194, &#x27;username&#x27;: &#x27;Katelyn_138399635163704465&#x27;, &#x27;firstName&#x27;: &#x27;Douglas&#x27;, &#x27;lastName&#x27;: &#x27;Castro&#x27;, &#x27;email&#x27;: &#x27;diana.berger@estrada-williams.org&#x27;, &#x27;password&#x27;: &#x27;RkM7E3HKS+&#x27;, &#x27;phone&#x27;: &#x27;+919617856275&#x27;, &#x27;userStatus&#x27;: 0}
+INFO     root:test_user_update.py:19 Validating STATUS_CODE is OK
+INFO     root:users.py:60 Updating User details for username Katelyn_138399635163704465
+INFO     root:rest_client.py:77 PUT	::: https://petstore.swagger.io/v2/user/Katelyn_138399635163704465
+INFO     root:rest_client.py:81 BODY	::: {&#x27;id&#x27;: 740398534, &#x27;username&#x27;: &#x27;Theresa_138399635176304147&#x27;, &#x27;firstName&#x27;: &#x27;Lindsay&#x27;, &#x27;lastName&#x27;: &#x27;Rojas&#x27;, &#x27;email&#x27;: &#x27;joshua.watkins@olson.com&#x27;, &#x27;password&#x27;: &#x27;@8LC#xL4^X&#x27;, &#x27;phone&#x27;: &#x27;+918447495588&#x27;, &#x27;userStatus&#x27;: 4}
+INFO     root:test_user_update.py:26 Validating STATUS_CODE is OK
+INFO     root:test_user_update.py:31 Validating Response SCHEMA for update_user()
+INFO     root:test_user_update.py:34 Validating Response BODY for update_user()
+INFO     root:test_user_update.py:37 User with username Katelyn_138399635163704465 updated successfully.
+INFO     root:test_user_update.py:39 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_user(Theresa_138399635176304147)
+INFO     root:users.py:49 Getting User details for username Theresa_138399635176304147
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Theresa_138399635176304147
+INFO     root:test_user_update.py:42 Validating STATUS_CODE is OK
+INFO     root:test_user_update.py:45 Validating Response SCHEMA
+INFO     root:test_user_update.py:48 Validating Response BODY
+INFO     root:test_user_update.py:52 User with username Katelyn_138399635163704465 was updated and validated successfully.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">testcases/users_tests/test_users_end_to_end.py::test_create_multiple_users_edit_details_and_get_user_by_username</td>
+          <td class="col-duration">8.61</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stderr call------------------------------ <br/>INFO:root:Creating multiple Users
+INFO:root:POST	::: https://petstore.swagger.io/v2/user/createWithArray
+INFO:root:BODY	::: [{&#x27;id&#x27;: 923564566, &#x27;username&#x27;: &#x27;Zachary_138399635222643236&#x27;, &#x27;firstName&#x27;: &#x27;Troy&#x27;, &#x27;lastName&#x27;: &#x27;Hall&#x27;, &#x27;email&#x27;: &#x27;lisa.morrison@browning.org&#x27;, &#x27;password&#x27;: &#x27;eT_H12Tl(W&#x27;, &#x27;phone&#x27;: &#x27;+919626955374&#x27;, &#x27;userStatus&#x27;: 5}, {&#x27;id&#x27;: 518009497, &#x27;username&#x27;: &#x27;Kayla_138399635222703002&#x27;, &#x27;firstName&#x27;: &#x27;Tracy&#x27;, &#x27;lastName&#x27;: &#x27;Brown&#x27;, &#x27;email&#x27;: &#x27;eric.porter@vasquez-harris.com&#x27;, &#x27;password&#x27;: &#x27;XJ5+4BIv$U&#x27;, &#x27;phone&#x27;: &#x27;+919883520765&#x27;, &#x27;userStatus&#x27;: 6}, {&#x27;id&#x27;: 637262442, &#x27;username&#x27;: &#x27;Phillip_138399635222762934&#x27;, &#x27;firstName&#x27;: &#x27;Chelsey&#x27;, &#x27;lastName&#x27;: &#x27;Dalton&#x27;, &#x27;email&#x27;: &#x27;christine.cook@green.com&#x27;, &#x27;password&#x27;: &#x27;Cq4Cj2uKt^&#x27;, &#x27;phone&#x27;: &#x27;+919959843113&#x27;, &#x27;userStatus&#x27;: 9}, {&#x27;id&#x27;: 311155650, &#x27;username&#x27;: &#x27;Ryan_138399635222792746&#x27;, &#x27;firstName&#x27;: &#x27;Steven&#x27;, &#x27;lastName&#x27;: &#x27;Ramirez&#x27;, &#x27;email&#x27;: &#x27;phyllis.horn@spencer.com&#x27;, &#x27;password&#x27;: &#x27;P7I@Jree_o&#x27;, &#x27;phone&#x27;: &#x27;+917373887535&#x27;, &#x27;userStatus&#x27;: 5}, {&#x27;id&#x27;: 360686043, &#x27;username&#x27;: &#x27;Meghan_138399635222812692&#x27;, &#x27;firstName&#x27;: &#x27;Anthony&#x27;, &#x27;lastName&#x27;: &#x27;Swanson&#x27;, &#x27;email&#x27;: &#x27;kelly.thompson@ward-gregory.com&#x27;, &#x27;password&#x27;: &#x27;!kTZ%qt#z4&#x27;, &#x27;phone&#x27;: &#x27;+917255886376&#x27;, &#x27;userStatus&#x27;: 6}]
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for create_users()
+INFO:root:Validating Response BODY for create_users()
+INFO:root:5 users created successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Zachary_138399635222643236
+INFO:root:Getting User details for username Zachary_138399635222643236
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Zachary_138399635222643236
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Zachary_138399635222643236 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Kayla_138399635222703002
+INFO:root:Getting User details for username Kayla_138399635222703002
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Kayla_138399635222703002
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Kayla_138399635222703002 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Phillip_138399635222762934
+INFO:root:Getting User details for username Phillip_138399635222762934
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Phillip_138399635222762934
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Phillip_138399635222762934 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Ryan_138399635222792746
+INFO:root:Getting User details for username Ryan_138399635222792746
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Ryan_138399635222792746
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Ryan_138399635222792746 was created and validated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Meghan_138399635222812692
+INFO:root:Getting User details for username Meghan_138399635222812692
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Meghan_138399635222812692
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:Meghan_138399635222812692 was created and validated successfully.
+INFO:root:All Users are created successfully.
+INFO:root:Updating User details for username Kayla_138399635222703002
+INFO:root:PUT	::: https://petstore.swagger.io/v2/user/Kayla_138399635222703002
+INFO:root:BODY	::: {&#x27;id&#x27;: 518009497, &#x27;username&#x27;: &#x27;Kayla_138399635222703002&#x27;, &#x27;firstName&#x27;: &#x27;updated_Tracy&#x27;, &#x27;lastName&#x27;: &#x27;updated_Brown&#x27;, &#x27;email&#x27;: &#x27;updated_eric.porter@vasquez-harris.com&#x27;, &#x27;password&#x27;: &#x27;updated_XJ5+4BIv$U&#x27;, &#x27;phone&#x27;: &#x27;+9198835207651234567890&#x27;, &#x27;userStatus&#x27;: 16}
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA for update_user()
+INFO:root:Validating Response BODY for update_user()
+INFO:root:User with username Kayla_138399635222703002 updated successfully.
+INFO:root:Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_user(Kayla_138399635222703002)
+INFO:root:Getting User details for username Kayla_138399635222703002
+INFO:root:GET	::: https://petstore.swagger.io/v2/user/Kayla_138399635222703002
+INFO:root:Validating STATUS_CODE is OK
+INFO:root:Validating Response SCHEMA
+INFO:root:Validating Response BODY
+INFO:root:User with username Kayla_138399635222703002 was updated and validated successfully.
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:users.py:35 Creating multiple Users
+INFO     root:rest_client.py:87 POST	::: https://petstore.swagger.io/v2/user/createWithArray
+INFO     root:rest_client.py:91 BODY	::: [{&#x27;id&#x27;: 923564566, &#x27;username&#x27;: &#x27;Zachary_138399635222643236&#x27;, &#x27;firstName&#x27;: &#x27;Troy&#x27;, &#x27;lastName&#x27;: &#x27;Hall&#x27;, &#x27;email&#x27;: &#x27;lisa.morrison@browning.org&#x27;, &#x27;password&#x27;: &#x27;eT_H12Tl(W&#x27;, &#x27;phone&#x27;: &#x27;+919626955374&#x27;, &#x27;userStatus&#x27;: 5}, {&#x27;id&#x27;: 518009497, &#x27;username&#x27;: &#x27;Kayla_138399635222703002&#x27;, &#x27;firstName&#x27;: &#x27;Tracy&#x27;, &#x27;lastName&#x27;: &#x27;Brown&#x27;, &#x27;email&#x27;: &#x27;eric.porter@vasquez-harris.com&#x27;, &#x27;password&#x27;: &#x27;XJ5+4BIv$U&#x27;, &#x27;phone&#x27;: &#x27;+919883520765&#x27;, &#x27;userStatus&#x27;: 6}, {&#x27;id&#x27;: 637262442, &#x27;username&#x27;: &#x27;Phillip_138399635222762934&#x27;, &#x27;firstName&#x27;: &#x27;Chelsey&#x27;, &#x27;lastName&#x27;: &#x27;Dalton&#x27;, &#x27;email&#x27;: &#x27;christine.cook@green.com&#x27;, &#x27;password&#x27;: &#x27;Cq4Cj2uKt^&#x27;, &#x27;phone&#x27;: &#x27;+919959843113&#x27;, &#x27;userStatus&#x27;: 9}, {&#x27;id&#x27;: 311155650, &#x27;username&#x27;: &#x27;Ryan_138399635222792746&#x27;, &#x27;firstName&#x27;: &#x27;Steven&#x27;, &#x27;lastName&#x27;: &#x27;Ramirez&#x27;, &#x27;email&#x27;: &#x27;phyllis.horn@spencer.com&#x27;, &#x27;password&#x27;: &#x27;P7I@Jree_o&#x27;, &#x27;phone&#x27;: &#x27;+917373887535&#x27;, &#x27;userStatus&#x27;: 5}, {&#x27;id&#x27;: 360686043, &#x27;username&#x27;: &#x27;Meghan_138399635222812692&#x27;, &#x27;firstName&#x27;: &#x27;Anthony&#x27;, &#x27;lastName&#x27;: &#x27;Swanson&#x27;, &#x27;email&#x27;: &#x27;kelly.thompson@ward-gregory.com&#x27;, &#x27;password&#x27;: &#x27;!kTZ%qt#z4&#x27;, &#x27;phone&#x27;: &#x27;+917255886376&#x27;, &#x27;userStatus&#x27;: 6}]
+INFO     root:test_users_end_to_end.py:22 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:25 Validating Response SCHEMA for create_users()
+INFO     root:test_users_end_to_end.py:28 Validating Response BODY for create_users()
+INFO     root:test_users_end_to_end.py:31 5 users created successfully.
+INFO     root:test_users_end_to_end.py:34 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Zachary_138399635222643236
+INFO     root:users.py:49 Getting User details for username Zachary_138399635222643236
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Zachary_138399635222643236
+INFO     root:test_users_end_to_end.py:37 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_users_end_to_end.py:43 Validating Response BODY
+INFO     root:test_users_end_to_end.py:46 Zachary_138399635222643236 was created and validated successfully.
+INFO     root:test_users_end_to_end.py:34 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Kayla_138399635222703002
+INFO     root:users.py:49 Getting User details for username Kayla_138399635222703002
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Kayla_138399635222703002
+INFO     root:test_users_end_to_end.py:37 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_users_end_to_end.py:43 Validating Response BODY
+INFO     root:test_users_end_to_end.py:46 Kayla_138399635222703002 was created and validated successfully.
+INFO     root:test_users_end_to_end.py:34 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Phillip_138399635222762934
+INFO     root:users.py:49 Getting User details for username Phillip_138399635222762934
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Phillip_138399635222762934
+INFO     root:test_users_end_to_end.py:37 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_users_end_to_end.py:43 Validating Response BODY
+INFO     root:test_users_end_to_end.py:46 Phillip_138399635222762934 was created and validated successfully.
+INFO     root:test_users_end_to_end.py:34 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Ryan_138399635222792746
+INFO     root:users.py:49 Getting User details for username Ryan_138399635222792746
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Ryan_138399635222792746
+INFO     root:test_users_end_to_end.py:37 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_users_end_to_end.py:43 Validating Response BODY
+INFO     root:test_users_end_to_end.py:46 Ryan_138399635222792746 was created and validated successfully.
+INFO     root:test_users_end_to_end.py:34 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for Meghan_138399635222812692
+INFO     root:users.py:49 Getting User details for username Meghan_138399635222812692
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Meghan_138399635222812692
+INFO     root:test_users_end_to_end.py:37 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:40 Validating Response SCHEMA
+INFO     root:test_users_end_to_end.py:43 Validating Response BODY
+INFO     root:test_users_end_to_end.py:46 Meghan_138399635222812692 was created and validated successfully.
+INFO     root:test_users_end_to_end.py:48 All Users are created successfully.
+INFO     root:users.py:60 Updating User details for username Kayla_138399635222703002
+INFO     root:rest_client.py:77 PUT	::: https://petstore.swagger.io/v2/user/Kayla_138399635222703002
+INFO     root:rest_client.py:81 BODY	::: {&#x27;id&#x27;: 518009497, &#x27;username&#x27;: &#x27;Kayla_138399635222703002&#x27;, &#x27;firstName&#x27;: &#x27;updated_Tracy&#x27;, &#x27;lastName&#x27;: &#x27;updated_Brown&#x27;, &#x27;email&#x27;: &#x27;updated_eric.porter@vasquez-harris.com&#x27;, &#x27;password&#x27;: &#x27;updated_XJ5+4BIv$U&#x27;, &#x27;phone&#x27;: &#x27;+9198835207651234567890&#x27;, &#x27;userStatus&#x27;: 16}
+INFO     root:test_users_end_to_end.py:60 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:63 Validating Response SCHEMA for update_user()
+INFO     root:test_users_end_to_end.py:66 Validating Response BODY for update_user()
+INFO     root:test_users_end_to_end.py:70 User with username Kayla_138399635222703002 updated successfully.
+INFO     root:test_users_end_to_end.py:72 Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_user(Kayla_138399635222703002)
+INFO     root:users.py:49 Getting User details for username Kayla_138399635222703002
+INFO     root:rest_client.py:71 GET	::: https://petstore.swagger.io/v2/user/Kayla_138399635222703002
+INFO     root:test_users_end_to_end.py:75 Validating STATUS_CODE is OK
+INFO     root:test_users_end_to_end.py:78 Validating Response SCHEMA
+INFO     root:test_users_end_to_end.py:81 Validating Response BODY
+INFO     root:test_users_end_to_end.py:85 User with username Kayla_138399635222703002 was updated and validated successfully.<br/></div></td></tr></tbody></table></body></html>

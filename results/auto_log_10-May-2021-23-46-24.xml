@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="16" time="146.400" timestamp="2021-05-10T23:46:24.482418" hostname="LAPTOP-9EMDAFKC"><testcase classname="testcases.pets_tests.test_end_to_end" name="test_create_multiple_pets_edit_status_and_find_by_edited_status" time="34.326" /><testcase classname="testcases.pets_tests.test_get_pet_by_status" name="test_get_pet_by_valid_status" time="28.294" /><testcase classname="testcases.pets_tests.test_get_pet_by_status" name="test_get_pet_by_invalid_status" time="1.045" /><testcase classname="testcases.pets_tests.test_pet_update" name="test_update_pet" time="6.170" /><testcase classname="testcases.pets_tests.test_pets_creation" name="test_create_single_pet" time="4.576" /><testcase classname="testcases.pets_tests.test_pets_creation" name="test_create_single_pet_using_put" time="4.126" /><testcase classname="testcases.pets_tests.test_pets_creation" name="test_create_multiple_pets" time="31.841" /><testcase classname="testcases.users_tests.test_user" name="test_create_user" time="3.287" /><testcase classname="testcases.users_tests.test_user" name="test_get_non_existing_user" time="1.106" /><testcase classname="testcases.users_tests.test_user_creation" name="test_create_users_using_array" time="6.454" /><testcase classname="testcases.users_tests.test_user_creation" name="test_create_duplicate_users" time="2.243"><failure message="AssertionError: Response is - 200&#10;assert 200 == &lt;HTTPStatus.CONFLICT: 409&gt;&#10;  +200&#10;  -&lt;HTTPStatus.CONFLICT: 409&gt;">@pytest.mark.user
+    def test_create_duplicate_users():
+    
+        user1 = UserModel()
+        user_actions = UserActions()
+        resp = user_actions.create_user(user1)
+    
+        success_response = SuccessResponse(message=str(user1.id))
+        logging.info(f'Validating STATUS_CODE, SCHEMA and RESPONSE BODY for create_user())')
+    
+        logging.info('Validating STATUS_CODE is OK')
+        assert resp.status_code == HTTPStatus.OK, f'Response is - {resp.status_code}'
+    
+        logging.info(f'Validating Response SCHEMA')
+        assert validate_schema(resp, type(success_response)), 'Response schema is incorrect'
+    
+        logging.info(f'Validating Response BODY')
+        assert validate_response_body(resp, success_response), f'expected: {resp.json()} \n ' \
+                                                               f'actual: {asdict(success_response)}'
+    
+        # create same user again. Assuming the creation should fail due to duplicate id and username
+        resp = user_actions.create_user(user1)
+    
+        logging.info('Validating STATUS_CODE is CONFLICT')
+&gt;       assert resp.status_code == HTTPStatus.CONFLICT, f'Response is - {resp.status_code}'
+E       AssertionError: Response is - 200
+E       assert 200 == &lt;HTTPStatus.CONFLICT: 409&gt;
+E         +200
+E         -&lt;HTTPStatus.CONFLICT: 409&gt;
+
+testcases\users_tests\test_user_creation.py:74: AssertionError</failure></testcase><testcase classname="testcases.users_tests.test_user_creation" name="test_create_user_with_alphanumeric_id" time="1.082" /><testcase classname="testcases.users_tests.test_user_creation" name="test_create_user_with_int_parsable_string_id" time="2.184" /><testcase classname="testcases.users_tests.test_user_update" name="test_update_existing_user" time="3.417" /><testcase classname="testcases.users_tests.test_user_update" name="test_update_existing_user_with_invalid_data" time="2.441"><failure message="AssertionError: Response is - 200&#10;assert 200 == &lt;HTTPStatus.BAD_REQUEST: 400&gt;&#10;  +200&#10;  -&lt;HTTPStatus.BAD_REQUEST: 400&gt;">@pytest.mark.user
+    def test_update_existing_user_with_invalid_data():
+        """ Validates whether This case is expected failure
+        :return:
+        """
+    
+        user1 = UserModel()
+        user_actions = UserActions()
+        resp = user_actions.create_user(user1)
+    
+        logging.info('Validating STATUS_CODE is OK')
+        assert resp.status_code == HTTPStatus.OK, f'Response is - {resp.status_code}'
+    
+        # Expected type of Email and phone is string
+        # Invalid data created with values as int and string with special chars
+        updated_user1_details = UserModel()
+        updated_user1_details.email = Randomize().random_integer()
+        updated_user1_details.phone = Randomize().random_password()
+    
+        response = user_actions.update_user(user1.username, updated_user1_details)
+    
+        logging.info('Validating STATUS_CODE is BAD_REQUEST')
+&gt;       assert response.status_code == HTTPStatus.BAD_REQUEST, f'Response is - {response.status_code}'
+E       AssertionError: Response is - 200
+E       assert 200 == &lt;HTTPStatus.BAD_REQUEST: 400&gt;
+E         +200
+E         -&lt;HTTPStatus.BAD_REQUEST: 400&gt;
+
+testcases\users_tests\test_user_update.py:77: AssertionError</failure></testcase><testcase classname="testcases.users_tests.test_users_end_to_end" name="test_create_multiple_users_edit_details_and_get_user_by_username" time="8.618" /></testsuite></testsuites>
