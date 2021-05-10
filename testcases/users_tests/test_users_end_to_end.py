@@ -21,10 +21,13 @@ def test_create_multiple_users_edit_details_and_get_user_by_username():
 
     logging.info('Validating STATUS_CODE is OK')
     assert resp.status_code == HTTPStatus.OK, f'Response is - {resp.status_code}'
+
     logging.info('Validating Response SCHEMA for create_users()')
     assert validate_schema(resp, SuccessResponse), 'Response schema is incorrect'
+
     logging.info(f'Validating Response BODY for create_users()')
     assert validate_response_body(resp, success), f'expected: {resp.json()} \n actual: {asdict(success)}'
+
     logging.info(f'{len(user_list)} users created successfully.')
 
     for user in user_list:
@@ -56,11 +59,14 @@ def test_create_multiple_users_edit_details_and_get_user_by_username():
     response = user_actions.update_user(chosen_user.username, chosen_user)
     logging.info('Validating STATUS_CODE is OK')
     assert response.status_code == HTTPStatus.OK, f'Response is - {response.status_code}'
+
     logging.info('Validating Response SCHEMA for update_user()')
     assert validate_schema(response, type(update_success_response)), 'Response schema is incorrect'
+
     logging.info(f'Validating Response BODY for update_user()')
     assert validate_response_body(response, update_success_response), f'expected: {response.json()} \n ' \
                                                                    f'actual: {asdict(update_success_response)}'
+
     logging.info(f'User with username {chosen_user.username} updated successfully.')
 
     logging.info(f'Validating STATUS_CODE, SCHEMA and RESPONSE BODY for get_user({chosen_user.username})')
