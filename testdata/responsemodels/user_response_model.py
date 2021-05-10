@@ -15,3 +15,12 @@ class InternalServerErrorResponse(Response):
         self.code = code
         self.type = type
         self.message = message
+
+
+class NotFoundResponse(Response):
+
+    def __init__(self, code=1, type='error', message='User not found'):
+        self.code = code
+        self.type = type
+        self.message = message
+
