@@ -1,6 +1,6 @@
 import pytest
 import logging
-from actions.users import Users
+from actions.users import Users as UserActions
 from testdata.datafactory.user_factory import UserModel
 from http import HTTPStatus
 from lib.api.validator import validate_response_body, validate_schema
@@ -13,14 +13,14 @@ from dataclasses import asdict
 def test_update_existing_user():
 
     user1 = UserModel()
-    user_actions = Users()
+    user_actions = UserActions()
     resp = user_actions.create_user(user1)
 
     logging.info('Validating STATUS_CODE is OK')
     assert resp.status_code == HTTPStatus.OK, f'Response is - {resp.status_code}'
 
     updated_user1_details = UserModel()
-    updated_user1_details.username = Randomize().random_first_name()
+    updated_user1_details.username = Randomize().random_username()
     response = user_actions.update_user(user1.username, updated_user1_details)
 
     logging.info('Validating STATUS_CODE is OK')
@@ -48,4 +48,23 @@ def test_update_existing_user():
                                                                     f'actual: {asdict(updated_user1_details)}'
 
     logging.info(f'User with username {user1.username} was updated and validated successfully.')
+
+
+@pytest.mark.user
+def test_update_existing_user_with_wrong_data():
+    user1 = UserModel()
+    user_actions = UserActions()
+    resp = user_actions.create_user(user1)
+
+    logging.info('Validating STATUS_CODE is OK')
+    assert resp.status_code == HTTPStatus.OK, f'Response is - {resp.status_code}'
+
+    updated_user1_details = UserModel()
+    updated_user1_details.email = Randomize().random_integer()
+    updated_user1_details.phone = Randomize().random_password()
+
+    response = user_actions.update_user(user1.username, updated_user1_details)
+
+    logging.info('Validating STATUS_CODE is BAD_REQUEST')
+    assert response.status_code == HTTPStatus.BAD_REQUEST, f'Response is - {response.status_code}'
 
