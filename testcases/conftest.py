@@ -31,8 +31,6 @@ def pytest_configure(config):
     txt_log_file = f'auto_log_{log_file_name_format}.log'
     html_log_file = f'auto_log_{log_file_name_format}.html'
     xml_log_file = f'auto_log_{log_file_name_format}.xml'
-    # fo = open(os.path.join(result_dir, txt_log_file), "w+")
-    # fo.close()
 
     config.option.htmlpath = os.path.join(result_dir, html_log_file)
     config.option.log_file = os.path.join(result_dir, txt_log_file)
@@ -50,7 +48,13 @@ def pytest_sessionfinish(session, exitstatus):
     logging.info("\n\n******************* Execution Completed *******************")
 
 
-@fixture(scope='session')
-def setup():
-    pass
 
+@fixture(scope='function', autouse=True)
+def pet_setup_fixture(request):
+    logging.info(f'Executing test case {request.node.nodeid}')
+
+    yield
+    def tear_down():
+        logging.info(f'**** Test execution completed for {request.node.nodeid} ****')
+
+    tear_down()
