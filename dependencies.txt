@@ -5,3 +5,4 @@ requests
 faker
 dataclasses
 dataclasses-jsonschema
+pymssql
