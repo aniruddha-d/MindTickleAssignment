@@ -6,7 +6,7 @@ from utilities.randomizer import Randomize
 from dataclasses import dataclass, field
 from typing import List
 from testdata.datafactory import Model
-
+from dataclasses import asdict
 from pprint import pprint
 
 
@@ -22,22 +22,15 @@ class UserModel(Model):
     userStatus: int = field(default_factory=Randomize().random_integer_from_length)
 
 
-@dataclass
-class ModelUserList:
-    users: List[UserModel]
-
-
 if __name__ == '__main__':
-    p1 = UserModel()
-    p2 = UserModel()
-    print(p1)
-    print(p2)
-    pprint(UserModel.json_schema())
+    p1 = UserModel('ani@ani.com')
 
-    p1.firstName = 102
-    print(p1.firstName)
-    # from dataclasses import asdict
-    # print(asdict(p1))
+    d = asdict(p1)
+    d['asdads'] = 10
+    d.pop('email')
+    m = Model.parse(d, UserModel)
+
+    print(asdict(m))
 '''
  [
   {

@@ -27,14 +27,14 @@ def test_create_user():
     assert resp.status_code == 200
 
     resp2 = Users().get_user(m1.username)  # response
-    assert validate_response_body(resp2, m1) == True
+    assert validate_response_body(resp2, m1), f'expected: {resp2.json()} \n actual: {asdict(m1)}'
     resp2 = resp2.json()
-    assert validate_response_body(resp2, m1) == True
+    assert validate_response_body(resp2, m1), f'expected: {resp2.json()} \n actual: {asdict(m1)}'
 
     resp2 = Users().get_user(m1.username)  # response
-    assert validate_response_body_as_json(resp2, m1) == True
-    assert validate_response_body_as_json(resp2, asdict(m1)) == True
+    assert validate_response_body_as_json(resp2, m1), f'expected: {resp2.json()} \n actual: {asdict(m1)}'
+    assert validate_response_body_as_json(resp2, asdict(m1)), f'expected: {resp2.json()} \n actual: {asdict(m1)}'
 
     resp2 = resp2.json()
-    assert validate_response_body_as_json(resp2, m1) == True
-    assert validate_response_body_as_json(resp2, asdict(m1)) == True
+    assert validate_response_body_as_json(resp2, m1), f'expected: {resp2.json()} \n actual: {asdict(m1)}'
+    assert validate_response_body_as_json(resp2, asdict(m1)), f'expected: {resp2.json()} \n actual: {asdict(m1)}'

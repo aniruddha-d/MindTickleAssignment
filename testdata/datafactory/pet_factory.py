@@ -59,8 +59,11 @@ class PetModel(Model):
 if __name__ == '__main__':
     p = PetModel()
     print(p)
-
-    pprint(PetModel.json_schema())
+    d = asdict(p)
+    d.pop('category')
+    # d['asdasd'] = 'asdkajgkjsdasdasd'
+    m = Model.parse(d, PetModel)
+    pprint(asdict(m))
 
 '''
  {

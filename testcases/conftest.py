@@ -47,8 +47,7 @@ def pytest_sessionstart(session):
 
 def pytest_sessionfinish(session, exitstatus):
     """ Pytest session ends here """
-
-    logging.info("Execution completed")
+    logging.info("\n\n******************* Execution Completed *******************")
 
 
 @fixture(scope='session')

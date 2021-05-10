@@ -1,15 +1,7 @@
-from testdata.datafactory import Model
-from dataclasses import dataclass
+from . import Response
 
 
-@dataclass
-class UserCreation(Model):
-    code: int
-    type: str
-    message: str
-
-
-class SuccessResponse(UserCreation):
+class SuccessResponse(Response):
 
     def __init__(self, code=200, type='unknown', message='ok'):
         self.code = code
@@ -17,7 +9,7 @@ class SuccessResponse(UserCreation):
         self.message = message
 
 
-class InternalServerErrorResponse(UserCreation):
+class InternalServerErrorResponse(Response):
 
     def __init__(self, code=500, type='unknown', message='something bad happened'):
         self.code = code

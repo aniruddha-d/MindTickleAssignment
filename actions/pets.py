@@ -11,7 +11,7 @@ class Endpoints:
     CREATE_PET = '/pet'
     UPDATE_PET = 'pet'
     GET_PET = 'pet/{id}'
-    FIND_BY_STATUS = 'pet/findByStatus?status={status}'
+    FIND_BY_STATUS = 'pet/findByStatus'
 
 
 class Pets(Headers):
@@ -60,12 +60,12 @@ class Pets(Headers):
         response = execute_rest_api(Method.PUT, url, json_body=json_body, headers=self.request_headers)
         return response
 
-    def get_pets_by_status(self, status) -> Response:
+    def get_pets_by_status(self, **status) -> Response:
         """ Executes GET API call for getting list of details of all Pet using with given status
         :param status: status of a Pet
         :return:
         """
         logging.info(f'Getting all Pets with status {status}')
-        url = build_url(Endpoints.FIND_BY_STATUS.replace('{status}', status))
-        response = execute_rest_api(Method.GET, url, headers=self.request_headers)
+        url = build_url(Endpoints.FIND_BY_STATUS)
+        response = execute_rest_api(Method.GET, url, headers=self.request_headers, query_params=status)
         return response
